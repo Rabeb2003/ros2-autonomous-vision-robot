@@ -79,11 +79,6 @@ ros2 launch diff_robot person_detection_demo.launch.py
 - **Validation:** Qualitative validation has been achieved in Gazebo simulation. The perception node successfully identifies animated actors at 15+ FPS on CPU, while the navigation stack routes the robot safely through cluttered environments.
 - **Limitations:** The current implementation relies on Gazebo Classic. Future work includes migrating to Gazebo Ignition/Harmonic and deploying the stack onto physical hardware.
 
-## 🎓 Why this matters for research internships
-
-1. **System Integration:** Proves the ability to merge deep learning (YOLO) with classical robotics (Nav2).
-2. **Modern Robotics Stack:** Demonstrates proficiency in ROS 2 Humble, the current industry and academic standard.
-3. **Reproducibility:** Container-ready, clearly documented, and modularly designed for future lab experiments.
 
 ---
 **Author:** Rabeb Bouzaida — ENIM (Tunisia) — Electrical Engineering  
