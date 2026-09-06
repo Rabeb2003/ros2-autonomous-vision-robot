@@ -1,0 +1,19 @@
+digraph G {
+"base_link" -> "front_left"[label=" Broadcaster: default_authority\nAverage rate: 15.594\nBuffer length: 1.988\nMost recent transform: 2107.928\nOldest transform: 2105.94\n"];
+"base_footprint" -> "base_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"base_link" -> "front_right"[label=" Broadcaster: default_authority\nAverage rate: 15.594\nBuffer length: 1.988\nMost recent transform: 2107.928\nOldest transform: 2105.94\n"];
+"base_link" -> "trailer_base_link"[label=" Broadcaster: default_authority\nAverage rate: 15.594\nBuffer length: 1.988\nMost recent transform: 2107.928\nOldest transform: 2105.94\n"];
+"base_link" -> "rear_left"[label=" Broadcaster: default_authority\nAverage rate: 15.594\nBuffer length: 1.988\nMost recent transform: 2107.928\nOldest transform: 2105.94\n"];
+"base_link" -> "rear_right"[label=" Broadcaster: default_authority\nAverage rate: 15.594\nBuffer length: 1.988\nMost recent transform: 2107.928\nOldest transform: 2105.94\n"];
+"trailer_base_link" -> "trailer_wheel_left"[label=" Broadcaster: default_authority\nAverage rate: 15.594\nBuffer length: 1.988\nMost recent transform: 2107.928\nOldest transform: 2105.94\n"];
+"trailer_base_link" -> "trailer_wheel_right"[label=" Broadcaster: default_authority\nAverage rate: 15.594\nBuffer length: 1.988\nMost recent transform: 2107.928\nOldest transform: 2105.94\n"];
+"support" -> "camera_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"base_link" -> "support"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"base_link" -> "gps_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"base_link" -> "imu_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"base_link" -> "lidar_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1784202537.969704"[ shape=plaintext ] ;
+}->"base_footprint";
+}

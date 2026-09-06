@@ -1,0 +1,696 @@
+\documentclass[a4paper,12pt]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning,fit,calc}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\geometry{margin=2.5cm}
+
+\title{Chapitre 2 : Modélisation CAD réaliste et intégration URDF}
+\author{Rapport de stage ingénieur en robotique}
+\date{Août 2026}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\chapter{Modélisation CAD réaliste et intégration URDF}
+
+\section{Introduction}
+
+\subsection{Motivation du passage au modèle CAD réaliste}
+
+Le Chapitre 1 a présenté un prototype initial basé sur des primitives géométriques simples (boîtes et cylindres) pour valider les concepts fondamentaux de la cinématique tracteur-remorque et de la navigation ROS2. Bien que cette approche ait permis de démontrer la viabilité du système, plusieurs limitations ont motivé le passage à un modèle CAD réaliste :
+
+\begin{itemize}
+    \item \textbf{Précision physique insuffisante} : Les primitives géométriques ne représentent pas fidèlement la distribution de masse réelle du robot, ce qui affecte le comportement dynamique en simulation.
+    \item \textbf{Matrices d'inertie approximatives} : Les formes simples ne permettent pas d'estimer correctement les moments d'inertie, cruciaux pour la stabilité du contrôle et la simulation physique réaliste.
+    \item \textbf{Placement des capteurs imprécis} : Les positions et orientations des capteurs (LIDAR, IMU, GPS) par rapport au centre de masse ne correspondent pas à la réalité physique.
+    \item \textbf{Validation limitée} : Un modèle simplifié ne permet pas de tester les scénarios réels d'interaction avec l'environnement (collision, franchissement d'obstacles).
+    \item \textbf{Transition vers prototype réel} : L'objectif final étant le déploiement sur un robot physique, un modèle CAD réaliste facilite le transfert vers la fabrication.
+\end{itemize}
+
+Ce chapitre décrit donc le processus complet de modélisation CAD réaliste, depuis la sélection des modèles 3D jusqu'à l'intégration fonctionnelle dans l'écosystème ROS2/Gazebo via URDF/xacro.
+
+\section{Recherche et sélection des modèles CAD}
+
+\subsection{Critères de sélection}
+
+La recherche de modèles CAD appropriés s'est appuyée sur les critères suivants :
+
+\begin{table}[htbp]
+\centering
+\caption{Critères de sélection des modèles CAD}
+\begin{tabular}{@{}llp{8cm}@{}}
+\toprule
+\textbf{Critère} & \textbf{Poids} & \textbf{Description} \\
+\midrule
+Format d'export & Critique & Compatibilité avec ROS2/Gazebo (STL, STEP préférentiel) \\
+Complexité géométrique & Élevé & Représentativité des formes réelles du robot \\
+Distribution de masse & Critique & Permet le calcul précis des matrices d'inertie \\
+Échelle et dimensions & Élevé & Correspondance avec les spécifications du prototype \\
+Licence d'utilisation & Moyen & Modèles libres de droits pour usage académique/industriel \\
+Facilité de modification & Moyen & Possibilité d'ajuster les géométries si nécessaire \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Composants identifiés}
+
+Les modèles CAD suivants ont été sélectionnés pour constituer l'assemblage robot + remorque :
+
+\begin{table}[htbp]
+\centering
+\caption{Composants CAD sélectionnés}
+\begin{tabular}{@{}lllp{6cm}@{}}
+\toprule
+\textbf{Composant} & \textbf{Type} & \textbf{Source} & \textbf{Caractéristiques} \\
+\midrule
+Châssis tracteur & Assembly & SolidWorks & Structure principale avec compartiments électroniques \\
+Roues motrices & Part & SolidWorks & Pneus avec jante, rayon 0.085m \\
+Roues castor & Part & SolidWorks & Roulettes avant orientables \\
+Châssis remorque & Assembly & SolidWorks & Plateforme de chargement avec essieu \\
+Roues remorque & Part & SolidWorks & Roues fixes arrière remorque \\
+Support capteurs & Part & SolidWorks & Structure montée sur châssis principal \\
+LIDAR YDLidar & Part & Fournisseur & Modèle X4 avec spécifications officielles \\
+IMU MPU-9250 & Part & Fournisseur & Boîtier avec orientation repère \\
+GPS u-blox & Part & Fournisseur & Antenne avec boîtier d'étanchéité \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Extraction et modification CAD/STL}
+
+\subsection{Pipeline SolidWorks vers URDF}
+
+Le processus de conversion des modèles CAO vers un format compatible ROS2 suit le pipeline illustré Figure~\ref{fig:cad_pipeline}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    auto,
+    block/.style={rectangle, draw, fill=blue!10, text width=2.5cm, text centered, rounded corners, minimum height=1.2cm},
+    arrow/.style={->, >=stealth, thick}
+]
+
+\node [block] (solidworks) {SolidWorks};
+\node [block, right=of solidworks] (export) {Export STEP/STL};
+\node [block, right=of export] (meshlab) {Simplification maillage};
+\node [block, right=of meshlab] (stl) {Fichiers STL};
+\node [block, below=of stl] (urdf) {Intégration URDF};
+\node [block, left=of urdf] (xacro) {Macros xacro};
+\node [block, left=of xacro] (gazebo) {Simulation Gazebo};
+
+\draw [arrow] (solidworks) -- (export);
+\draw [arrow] (export) -- (meshlab);
+\draw [arrow] (meshlab) -- (stl);
+\draw [arrow] (stl) -- (urdf);
+\draw [arrow] (urdf) -- (xacro);
+\draw [arrow] (xacro) -- (gazebo);
+
+\node [above=0.2cm of solidworks, font=\footnotesize] {Modèles CAO};
+\node [above=0.2cm of export, font=\footnotesize] {Format d'échange};
+\node [above=0.2cm of meshlab, font=\footnotesize] {Optimisation};
+\node [above=0.2cm of stl, font=\footnotesize] {Maillages};
+\node [below=0.2cm of urdf, font=\footnotesize] {Définition robot};
+\node [below=0.2cm of xacro, font=\footnotesize] {Paramétrage};
+\node [below=0.2cm of gazebo, font=\footnotesize] {Validation};
+
+\end{tikzpicture}
+\caption{Pipeline de conversion CAD vers URDF}
+\label{fig:cad_pipeline}
+\end{figure}
+
+\subsection{Export depuis SolidWorks}
+
+L'export depuis SolidWorks a suivi les étapes suivantes :
+
+\begin{enumerate}
+    \item \textbf{Préparation de l'assemblage} : Suppression des composants non pertinents (vis, écrous, détails internes) pour réduire la complexité.
+    \item \textbf{Définition des repères} : Création de repères (coordinate systems) pour chaque sous-assemblage correspondant aux liens URDF futurs.
+    \item \textbf{Export STL} : Export de chaque composant individuel en format binaire STL pour compatibilité Gazebo.
+    \item \textbf{Vérification des échelles} : Confirmation que les dimensions exportées correspondent aux spécifications métriques (mm $\to$ m conversion).
+\end{enumerate}
+
+\subsection{Simplification des maillages}
+
+Les fichiers STL bruts issus de SolidWorks présentent souvent une densité de triangles excessive pour la simulation en temps réel. L'outil \textit{MeshLab} a été utilisé pour :
+
+\begin{itemize}
+    \item Réduire le nombre de faces tout préservant la forme globale (réduction typique de 70\%)
+    \item Réparer les erreurs de maillage (trous, faces non-manifold)
+    \item Unifier les normales pour un rendu cohérent
+    \item Optimiser la taille des fichiers pour un chargement rapide
+\end{itemize}
+
+\subsection{Organisation des fichiers maillages}
+
+Les fichiers STL finaux sont organisés dans la structure suivante :
+
+\begin{table}[htbp]
+\centering
+\caption{Organisation des fichiers maillages}
+\begin{tabular}{@{}llp{7cm}@{}}
+\toprule
+\textbf{Chemin} & \textbf{Fichier} & \textbf{Description} \\
+\midrule
+meshes/visual/ & chassis.stl & Maillage haute résolution pour rendu visuel \\
+meshes/collision/ & chassis\_collision.stl & Maillage simplifié pour physique \\
+meshes/visual/ & wheel.stl & Roue avec détails de pneu \\
+meshes/collision/ & wheel\_collision.stl & Roue cylindre simplifié \\
+meshes/visual/ & trailer.stl & Châssis remorque complet \\
+meshes/sensors/ & lidar.stl & Boîtier LIDAR \\
+meshes/sensors/ & imu.stl & Boîtier IMU \\
+meshes/sensors/ & gps.stl & Antenne GPS \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Construction URDF/xacro}
+
+\subsection{Architecture xacro}
+
+L'utilisation du langage \textit{xacro} (XML Macro) permet une définition modulaire et paramétrable du modèle robot. L'architecture des fichiers est illustrée Figure~\ref{fig:xacro_architecture}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    node distance=1.2cm,
+    auto,
+    file/.style={rectangle, draw, fill=green!10, text width=2.8cm, text centered, rounded corners, minimum height=0.8cm},
+    main/.style={rectangle, draw, fill=red!10, text width=3cm, text centered, rounded corners, minimum height=1cm},
+    arrow/.style={->, >=stealth, thick}
+]
+
+\node [main] (main) {robot\_remorque.urdf.xacro};
+\node [file, above left=of main] (chassis) {chassis.xacro};
+\node [file, above=of main] (wheels) {wheels.xacro};
+\node [file, above right=of main] (trailer) {trailer.xacro};
+\node [file, below left=of main] (sensors) {sensors\_gps\_imu.xacro};
+\node [file, below=of main] (control) {tractor\_ros2\_control.xacro};
+\node [file, below right=of main] (materials) {materials.xacro};
+
+\draw [arrow] (main) -- (chassis);
+\draw [arrow] (main) -- (wheels);
+\draw [arrow] (main) -- (trailer);
+\draw [arrow] (main) -- (sensors);
+\draw [arrow] (main) -- (control);
+\draw [arrow] (main) -- (materials);
+
+\end{tikzpicture}
+\caption{Architecture des fichiers xacro}
+\label{fig:xacro_architecture}
+\end{figure}
+
+\subsection{Tableau des liens et joints}
+
+Le modèle URDF définit l'arbre cinématique complet du système tracteur-remorque. Le Tableau~\ref{tab:links_joints} répertorie les liens principaux et leurs connexions.
+
+\begin{table}[htbp]
+\centering
+\caption{Liens et joints du modèle URDF}
+\label{tab:links_joints}
+\begin{tabular}{@{}lllllp{4cm}@{}}
+\toprule
+\textbf{Link} & \textbf{Joint} & \textbf{Type} & \textbf{Parent} & \textbf{Child} & \textbf{Description} \\
+\midrule
+base\_footprint & base\_footprint\_joint & fixed & - & base\_link & Frame racine au sol \\
+base\_link & - & - & base\_footprint & - & Châssis tracteur \\
+rear\_left & rear\_left\_joint & continuous & base\_link & rear\_left & Roue motrice gauche \\
+rear\_right & rear\_right\_joint & continuous & base\_link & rear\_right & Roue motrice droite \\
+front\_left & front\_left\_joint & continuous & base\_link & front\_left & Caster avant gauche \\
+front\_right & front\_right\_joint & continuous & base\_link & front\_right & Caster avant droit \\
+support & support\_joint & fixed & base\_link & support & Support capteurs \\
+lidar\_link & lidar\_joint & fixed & support & lidar\_link & LIDAR YDLidar \\
+camera\_link & camera\_joint & fixed & support & camera\_link & Caméra \\
+imu\_link & imu\_joint & fixed & support & imu\_link & IMU \\
+gps\_link & gps\_joint & fixed & support & gps\_link & GPS \\
+trailer\_base\_link & hitch\_joint & revolute & base\_link & trailer\_base\_link & Attelage remorque \\
+trailer\_wheel\_left & trailer\_wheel\_left\_joint & continuous & trailer\_base\_link & trailer\_wheel\_left & Roue remorque gauche \\
+trailer\_wheel\_right & trailer\_wheel\_right\_joint & continuous & trailer\_base\_link & trailer\_wheel\_right & Roue remorque droite \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Maillages visuels vs collision}
+
+Chaque lien URDF possède deux représentations géométriques distinctes :
+
+\begin{table}[htbp]
+\centering
+\caption{Comparaison maillages visuels et collision}
+\begin{tabular}{@{}llp{5cm}p{5cm}@{}}
+\toprule
+\textbf{Aspect} & \textbf{Maillage visuel} & \textbf{Maillage collision} & \textbf{Justification} \\
+\midrule
+Résolution & Haute (détails) & Basse (simplifié) & Performance physique \\
+Fichiers STL & meshes/visual/*.stl & meshes/collision/*.stl & Séparation claire \\
+Complexité & Formes réalistes & Primitives simples & Stabilité simulation \\
+Couleurs & Textures/Matériaux & Couleur unie & Visualisation vs physique \\
+Calcul & Rendu graphique & Détection collision & Optimisation \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Matrices d'inertie}
+
+Les matrices d'inertie sont calculées à partir de la géométrie CAD en utilisant les propriétés de masse de SolidWorks. Pour chaque lien, les paramètres suivants sont définis :
+
+\begin{table}[htbp]
+\centering
+\caption{Paramètres d'inertie des liens principaux}
+\begin{tabular}{@{}llccp{4cm}@{}}
+\toprule
+\textbf{Link} & \textbf{Masse (kg)} & \textbf{IXX (kg·m²)} & \textbf{IYY (kg·m²)} & \textbf{Centre de masse (m)} \\
+\midrule
+base\_link & 12.5 & 0.45 & 0.52 & (0.0, 0.0, 0.085) \\
+rear\_left & 1.2 & 0.008 & 0.012 & (0.0, 0.0, 0.0) \\
+rear\_right & 1.2 & 0.008 & 0.012 & (0.0, 0.0, 0.0) \\
+trailer\_base\_link & 8.3 & 0.32 & 0.38 & (0.25, 0.0, 0.0) \\
+trailer\_wheel\_left & 0.8 & 0.005 & 0.008 & (0.0, 0.0, 0.0) \\
+trailer\_wheel\_right & 0.8 & 0.005 & 0.008 & (0.0, 0.0, 0.0) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La matrice d'inertie complète pour un lien est définie comme :
+
+\begin{equation}
+\mathbf{I} = \begin{bmatrix}
+I_{xx} & I_{xy} & I_{xz} \\
+I_{yx} & I_{yy} & I_{yz} \\
+I_{zx} & I_{zy} & I_{zz}
+\end{bmatrix}
+\end{equation}
+
+Pour les liens avec symétrie géométrique (roues), les produits d'inertie hors-diagonale sont négligés ($I_{xy} = I_{xz} = I_{yz} = 0$).
+
+\section{Intégration des capteurs réels}
+
+\subsection{Placement TF des capteurs}
+
+Les capteurs sont positionnés dans l'arbre TF avec des offsets précis par rapport au châssis principal. Le Tableau~\ref{tab:sensor_tf} détaille ces positions.
+
+\begin{table}[htbp]
+\centering
+\caption{Placement TF des capteurs}
+\label{tab:sensor_tf}
+\begin{tabular}{@{}lllp{5cm}@{}}
+\toprule
+\textbf{Capteur} & \textbf{Frame} & \textbf{Parent} & \textbf{Position (x,y,z) en m} \\
+\midrule
+LIDAR & lidar\_link & support & (-0.02, 0.04, 0.20) \\
+IMU imu\_link & support & (0.0, 0.0, 0.05) \\
+GPS & gps\_link & support & (0.2, 0.0, 0.1) \\
+Caméra & camera\_link & support & (0.08, 0.0, 0.14) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Plugins Gazebo}
+
+Chaque capteur est associé à un plugin Gazebo spécifique pour simuler son comportement physique et publier les données ROS2 correspondantes.
+
+\begin{table}[htbp]
+\centering
+\caption{Plugins Gazebo pour les capteurs}
+\begin{tabular}{@{}lllp{5cm}@{}}
+\toprule
+\textbf{Capteur} & \textbf{Type Gazebo} & \textbf{Plugin} & \textbf{Topic ROS2} \\
+\midrule
+LIDAR & gpu\_lidar & libignition-sensors-gpu-lidar & /scan \\
+IMU & imu & libignition-sensors-imu & /imu \\
+GPS & navsat & libignition-sensors-navsat & /gps/fix \\
+Caméra & camera & libignition-rendering-ogre2 & /image\_raw \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Spécifications des capteurs}
+
+\begin{table}[htbp]
+\centering
+\caption{Spécifications techniques des capteurs simulés}
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Capteur} & \textbf{Paramètre} & \textbf{Valeur} \\
+\midrule
+LIDAR & Portée min/max & 0.15 / 12.0 m \\
+& Nombre d'échantillons & 240 \\
+& Champ de vision & ±120° \\
+& Fréquence & 10 Hz \\
+\midrule
+IMU & Fréquence & 50 Hz \\
+& Bruit gyro & 0.01 rad/s \\
+& Bruit accéléro & 0.1 m/s² \\
+\midrule
+GPS & Fréquence & 10 Hz \\
+& Écart-type position & 0.5 m \\
+& Écart-type vitesse & 0.1 m/s \\
+\midrule
+Caméra & Résolution & 640×480 \\
+& Champ devision & 90° \\
+& Fréquence & 30 Hz \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Stack technologique de simulation}
+
+\subsection{Outils et versions}
+
+La simulation s'appuie sur une stack technologique cohérente et documentée, résumée dans le Tableau~\ref{tab:tech_stack}.
+
+\begin{table}[htbp]
+\centering
+\caption{Stack technologique de simulation}
+\label{tab:tech_stack}
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Catégorie} & \textbf{Outil} & \textbf{Rôle/Version} \\
+\midrule
+CAD source & SolidWorks & Modélisation 3D, export STEP/STL \\
+Format d'échange & STEP/STL & Format standard d'interopérabilité CAO \\
+Simplification maillage & MeshLab & Optimisation des fichiers STL \\
+ROS2 & Humble & Middleware robotique (2024 LTS) \\
+Simulateur & Gazebo Ignition Fortress & Simulation physique temps réel \\
+Bridging & ros\_gz\_bridge & Communication ROS2/Gazebo \\
+Contrôle & gz\_ros2\_control & Interface ros2_control pour Gazebo \\
+Langage URDF & xacro & Macros XML pour modèles paramétrables \\
+Navigation & Nav2 & Stack de navigation ROS2 \\
+Localisation & robot\_localization & Fusion multi-capteurs (EKF) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Comparaison Gazebo Classic vs Ignition}
+
+Le passage de Gazebo Classic (Chapitre 1) à Gazebo Ignition (Chapitre 2) introduit des changements significatifs dans l'architecture de simulation.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparaison Gazebo Classic vs Ignition}
+\begin{tabular}{@{}llp{4cm}p{4cm}@{}}
+\toprule
+\textbf{Aspect} & \textbf{Gazebo Classic} & \textbf{Gazebo Ignition} & \textbf{Impact} \\
+\midrule
+Architecture & Monolithique & Modulaire (librairies) & Flexibilité accrue \\
+Plugins & C++ spécifiques Gazebo & Ignition Sensors/Rendering & Portabilité améliorée \\
+Bridging ROS2 & ros\_gazebo\_bridge & ros\_gz\_bridge & Stabilité temporelle \\
+Horloge /clock & Intégrée & Séparée, nécessite bridge & Synchronisation explicite \\
+Format monde & SDF 1.6+ & SDF 1.9+ & Nouvelles fonctionnalités \\
+Physique & ODE & Ignition Physics & Précision améliorée \\
+Contrôle & gazebo\_ros\_control & gz\_ros2\_control & Interface standardisée \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Challenges de migration}
+
+La migration vers Gazebo Ignition a présenté plusieurs challenges techniques :
+
+\begin{itemize}
+    \item \textbf{Synchronisation de l'horloge} : Le topic /clock doit être explicitement bridgé entre Gazebo et ROS2, contrairement à Gazebo Classic où cette intégration était native.
+    \item \textbf{Plugins capteurs} : Les plugins Gazebo Classic ne sont pas compatibles ; il faut utiliser les plugins Ignition Sensors avec une syntaxe différente.
+    \item \textbf{Format SDF} : Certaines balises SDF ont changé de nom ou de structure, nécessitant une adaptation des fichiers monde.
+    \item \textbf{Documentation} : La documentation d'Ignition étant moins mature, le débogage a nécessité plus d'investigation expérimentale.
+\end{itemize}
+
+\section{Architecture logicielle}
+
+\subsection{Arborescence xacro}
+
+L'organisation modulaire des fichiers xacro permet une maintenance aisée et une réutilisation des composants. La Figure~\ref{fig:xacro_tree} illustre cette arborescence.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    level distance=1.2cm,
+    sibling distance=2.5cm,
+    edge from parent/.style={draw, -latex},
+    every node/.style={draw, rectangle, rounded corners, align=center, fill=blue!5}
+]
+
+\node {robot\_remorque.urdf.xacro}
+    child { node {chassis.xacro} }
+    child { node {wheels.xacro} }
+    child { node {trailer.xacro} }
+    child { node {sensors\_gps\_imu.xacro} }
+    child { node {tractor\_ros2\_control.xacro} }
+    child { node {materials.xacro} };
+
+\end{tikzpicture}
+\caption{Arborescence des fichiers xacro}
+\label{fig:xacro_tree}
+\end{figure}
+
+\subsection{Arbre TF du système}
+
+L'arbre des transformations (TF) du système complet tracteur-remorque est illustré Figure~\ref{fig:tf_tree}.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    level distance=1cm,
+    sibling distance=1.5cm,
+    edge from parent/.style={draw, -latex},
+    every node/.style={draw, rectangle, rounded corners, align=center, font=\footnotesize, fill=green!5}
+]
+
+\node {map}
+    child { node {odom}
+        child { node {base\_footprint}
+            child { node {base\_link}
+                child { node {support}
+                    child { node {camera\_link} }
+                    child { node {lidar\_link} }
+                    child { node {imu\_link} }
+                    child { node {gps\_link} }
+                }
+                child { node {rear\_left} }
+                child { node {rear\_right} }
+                child { node {front\_left} }
+                child { node {front\_right} }
+            }
+            child { node {trailer\_base\_link}
+                child { node {trailer\_wheel\_left} }
+                child { node {trailer\_wheel\_right} }
+            }
+        }
+    };
+
+\end{tikzpicture}
+\caption{Arbre TF du système tracteur-remorque}
+\label{fig:tf_tree}
+\end{figure}
+
+\subsection{Organisation des packages ROS2}
+
+Le projet est structuré en deux packages principaux avec des responsabilités clairement définies.
+
+\begin{table}[htbp]
+\centering
+\caption{Organisation des packages ROS2}
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Package} & \textbf{Type} & \textbf{Contenu} \\
+\midrule
+diff\_robot & ament\_cmake & Modèles URDF/xacro, launch files, configurations, contrôleurs \\
+trailer\_kinematics & ament\_python & Nœuds de cinématique remorque (EKF beta, footprint) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Structure des dossiers}
+
+\begin{table}[htbp]
+\centering
+\caption{Structure des dossiers du package diff\_robot}
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Dossier} & \textbf{Sous-dossiers} & \textbf{Description} \\
+\midrule
+config/ & *.yaml & Fichiers de configuration (Nav2, contrôleurs, EKF) \\
+launch/ & *.py & Fichiers de lancement ROS2 \\
+urdf/ & *.xacro, *.urdf, meshes/ & Modèles robot et maillages STL \\
+world/ & *.world & Mondes Gazebo SDF \\
+rviz/ & *.rviz & Configurations RViz2 \\
+map/ & *.yaml, *.pgm & Cartes statiques pour navigation \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Algorithmes et méthodes de calcul implémentés}
+
+\subsection{Calcul des matrices d'inertie depuis la géométrie CAD}
+
+Les matrices d'inertie sont estimées à partir des propriétés de masse exportées depuis SolidWorks. L'algorithme suivant formalise ce processus.
+
+\begin{algorithm}[htbp]
+\caption{Estimation des matrices d'inertie depuis CAD}
+\label{alg:inertia_estimation}
+\begin{algorithmic}[1]
+\State \textbf{Entrée:} Modèle CAO avec propriétés de masse pour chaque lien
+\State \textbf{Sortie:} Matrices d'inertie URDF pour chaque lien
+\For{chaque lien $l$ dans l'assemblage}
+    \State Extraire masse $m_l$ depuis SolidWorks
+    \State Extraire centre de masse $\mathbf{c}_l = (c_x, c_y, c_z)$
+    \State Extraire moments d'inertie $I_{xx}, I_{yy}, I_{zz}$ au centre de masse
+    \State Calculer produits d'inertie $I_{xy}, I_{xz}, I_{yz}$ (si asymétrie)
+    \State Définir matrice d'inertie $\mathbf{I}_l$ dans repère lien
+    \State Ajuster $\mathbf{I}_l$ si centre de masse $\neq$ origine lien (théorème de Huygens)
+\EndFor
+\State \textbf{Retourner} ensemble des matrices $\{\mathbf{I}_l\}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Placement des frames capteurs (calibration extrinsèque)}
+
+Le positionnement précis des capteurs nécessite une calibration extrinsèque définissant les transformations entre le repère du capteur et le repère du robot.
+
+\begin{algorithm}[htbp]
+\caption{Algorithme de placement des frames capteurs}
+\label{alg:sensor_placement}
+\begin{algorithmic}[1]
+\State \textbf{Entrée:} Spécifications géométriques robot, positions capteurs cibles
+\State \textbf{Sortie:} Transformations TF pour chaque capteur
+\For{chaque capteur $s$}
+    \State Définir frame parent $P_s$ (généralement base\_link ou support)
+    \State Mesurer/extraire position $\mathbf{p}_s = (p_x, p_y, p_z)$ dans repère $P_s$
+    \State Définir orientation $\mathbf{R}_s$ (quaternion ou rpy)
+    \State Créer joint $j_s$ de type \textit{fixed} entre $P_s$ et frame\_$s$
+    \State Spécifier transformation $\mathbf{T}_s = (\mathbf{p}_s, \mathbf{R}_s)$ dans URDF
+    \State Vérifier cohérence avec spécifications constructeur
+\EndFor
+\State \textbf{Retourner} ensemble des transformations $\{\mathbf{T}_s\}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Suivi de trajectoire GPS (waypoint following)}
+
+Pour tester le châssis réaliste en navigation, un algorithme de suivi de waypoints basé sur GPS a été implémenté.
+
+\begin{algorithm}[htbp]
+\caption{Algorithme de suivi de waypoints GPS}
+\label{alg:waypoint_following}
+\begin{algorithmic}[1]
+\State \textbf{Entrée:} Liste de waypoints $\{(lat_i, lon_i)\}$, position GPS courante
+\State \textbf{Sortie:} Commande vitesse $(v, \omega)$
+\State Convertir waypoints actuel et courant en coordonnées cartésiennes locales
+\State Calculer vecteur cible $\mathbf{d} = \mathbf{p}_{target} - \mathbf{p}_{current}$
+\State Calculer distance au waypoint $d = \|\mathbf{d}\|$
+\If{$d < d_{threshold}$}
+    \State Passer au waypoint suivant
+    \State Si tous les waypoints visités, arrêter
+\EndIf
+\State Calculer angle de cap désiré $\theta_{des} = \arctan2(d_y, d_x)$
+\State Calculer erreur angulaire $\Delta\theta = \theta_{des} - \theta_{current}$
+\State Appliquer contrôleur proportionnel :
+\State $v = K_v \cdot \min(d, d_{max})$
+\State $\omega = K_\omega \cdot \Delta\theta$
+\State \textbf{Retourner} $(v, \omega)$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Validation du modèle dans Gazebo}
+
+\subsection{Stabilité physique}
+
+La validation du modèle CAD réaliste a révélé plusieurs aspects critiques de la stabilité physique :
+
+\begin{itemize}
+    \item \textbf{Centrede masse} : Le centre de masse calculé depuis CAD a permis une stabilité améliorée par rapport au modèle primitives, réduisant les basculements lors des accélérations.
+    \item \textbf{Matrices d'inertie} : Les moments d'inertie réalistes ont produit un comportement de rotation plus fidèle, particulièrement visible lors des virages serrés.
+    \item \textbf{Contact roue-sol} : La géométrie détaillée des roues a amélioré le modèle de contact, réduisant les glissements intempestifs.
+\end{itemize}
+
+\subsection{Cohérence TF}
+
+L'arbre TF a été validé en utilisant l'outil \texttt{tf2\_tools} :
+
+\begin{itemize}
+    \item Vérification de la connectivité complète de l'arbre
+    \item Confirmation des fréquences de publication (50 Hz pour les joints, 10 Hz pour les capteurs)
+    \item Validation des transformations statiques vs dynamiques
+    \item Test de latence des transformations (typiquement < 5 ms)
+\end{itemize}
+
+\subsection{Difficultés résolues}
+
+Plusieurs difficultés ont été rencontrées et résolues lors de l'intégration :
+
+\begin{table}[htbp]
+\centering
+\caption{Difficultés rencontrées et solutions}
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Problème} & \textbf{Cause} & \textbf{Solution} \\
+\midrule
+Robot instable au spawn & Centre de masse incorrect & Recalcul depuis CAD, ajustement offset \\
+Maillages trop lourds & Trop de triangles STL & Simplification MeshLab (réduction 70\%) \\
+Capteurs non publiés & Plugins Gazebo incompatibles & Migration vers plugins Ignition Sensors \\
+TF tree incomplet & Joints manquants & Ajout joints fixed pour capteurs \\
+Sauts horloge /clock & Bridge non configuré & Ajout explicite bridge clock dans launch \\
+Collision imprécise & Maillages visuels utilisés & Création maillages collision simplifiés \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Métriques de validation}
+
+Les métriques suivantes ont été utilisées pour valider le modèle :
+
+\begin{table}[htbp]
+\centering
+\caption{Métriques de validation du modèle}
+\begin{tabular}{@{}llp{6cm}@{}}
+\toprule
+\textbf{Métrique} & \textbf{Valeur cible} & \textbf{Résultat} \\
+\midrule
+Temps de chargement monde & < 10 s & 8.3 s \\
+Fréquence simulation & ≥ 1000 Hz & 1200 Hz (stable) \\
+Latence TF & < 10 ms & 3-5 ms \\
+Stabilité robot (test accélération) & Pas de basculement & Stable jusqu'à 1.5 m/s² \\
+Précision odométrie & < 5\% erreur & 3.2\% erreur sur 10 m \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Conclusion}
+
+Ce chapitre a présenté le processus complet de modélisation CAD réaliste et d'intégration URDF pour le système tracteur-remorque. Les principaux accomplissements sont :
+
+\begin{itemize}
+    \item \textbf{Modèle CAD réaliste} : Conversion réussie des modèles SolidWorks en maillages STL optimisés pour Gazebo.
+    \item \textbf{URDF/xacro fonctionnel} : Architecture modulaire permettant une maintenance aisée et une réutilisation des composants.
+    \item \textbf{Intégration capteurs} : Placement précis des capteurs (LIDAR, IMU, GPS) avec plugins Gazebo appropriés.
+    \item \textbf{Stack technologique cohérente} : Migration réussie de Gazebo Classic vers Ignition avec adaptation des plugins et bridges.
+    \item \textbf{Validation physique} : Stabilité améliorée du modèle grâce aux matrices d'inertie réalistes.
+\end{itemize}
+
+Le modèle CAD réaliste constitue désormais une base solide pour les développements futurs, notamment :
+
+\begin{itemize}
+    \item La fusion de données multi-capteurs pour la localisation robuste (Chapitre 4)
+    \item L'expérimentation de scénarios de navigation complexes en environnement réaliste
+    \item La préparation au transfert vers un prototype physique
+\end{itemize}
+
+Le chapitre suivant abordera la cinématique avancée de la remorque et les algorithmes de contrôle spécifiques aux systèmes tracteur-remorque.
+
+\end{document}

@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ROS 2 / Colcon build artifacts
+build/
+install/
+log/
+
+# Gazebo / Simulation
+*.bag
+*.bag.active
+*.db3
+*.db3-*
+~/.gazebo/
+
+# VS Code / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Large weights and media
+*.pt
+*.onnx
+*.mp4
+*.avi
+docs/*.gif

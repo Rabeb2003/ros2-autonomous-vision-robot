@@ -1,0 +1,79 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: nav2_rviz_plugins/Navigation 2
+    Name: Navigation 2
+
+Visualization Manager:
+  Global Options:
+    Fixed Frame: map
+    Background Color: 48; 48; 48
+  Displays:
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Description Topic:
+        Value: /robot_description
+      Enabled: true
+
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Show Names: true
+      Show Arrows: true
+      Enabled: true
+
+    - Class: rviz_default_plugins/Odometry
+      Name: EKF_local_odom
+      Topic:
+        Value: /odometry/local
+      Covariance: true
+      Shaft Color: 85; 170; 255
+      Enabled: true
+
+    - Class: rviz_default_plugins/Odometry
+      Name: EKF_global_map
+      Topic:
+        Value: /odometry/global
+      Covariance: true
+      Shaft Color: 0; 255; 0
+      Enabled: true
+
+    - Class: rviz_default_plugins/Odometry
+      Name: GPS_cartesian_raw
+      Topic:
+        Value: /odometry/gps
+      Covariance: false
+      Shaft Color: 255; 0; 0
+      Enabled: true
+
+    - Class: rviz_default_plugins/LaserScan
+      Name: Lidar
+      Topic:
+        Value: /scan
+      Enabled: true
+
+    - Class: nav2_rviz_plugins/Costmap
+      Name: GlobalCostmap
+      Topic:
+        Value: /global_costmap/costmap
+      Enabled: true
+
+    - Class: nav2_rviz_plugins/Costmap
+      Name: LocalCostmap
+      Topic:
+        Value: /local_costmap/costmap
+      Enabled: true
+
+    - Class: nav2_rviz_plugins/Path
+      Name: GlobalPlan
+      Topic:
+        Value: /plan
+      Enabled: true
+
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 20
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0

@@ -1,0 +1,54 @@
+# Configuration Mapviz pour le projet tractor_trailer_nav (Silverstone fictif)
+#
+# Contrairement a la demo officielle (Sonoma Raceway, lieu reel), aucune
+# couche tile_map n'est utilisee ici : les coordonnees 49.0N/3.0E ne
+# correspondent a rien de reel dans votre simulation, afficher une image
+# satellite serait trompeur. On garde uniquement les couches qui
+# fonctionnent en coordonnees pures, sans fond de carte.
+
+capture_directory: ""
+fixed_frame: map
+target_frame: map
+fix_orientation: false
+rotate_90: false
+enable_antialiasing: true
+use_latest_transforms: true
+background: "#00131a"
+
+displays:
+  - type: mapviz_plugins/tf_frame
+    name: "Position robot (base_link)"
+    config:
+      frame: base_link
+      color: "#00ff00"
+      draw_style: arrows
+      is_visible: true
+
+  - type: mapviz_plugins/navsat
+    name: "GPS brut"
+    config:
+      topic: /gps/fix
+      color: "#ff0000"
+      draw_style: points
+      is_visible: true
+
+  - type: mapviz_plugins/path
+    name: "Plan Nav2"
+    config:
+      topic: /plan
+      color: "#00aaff"
+      is_visible: true
+
+  - type: mapviz_plugins/point_click_publisher
+    name: "Clic -> waypoint GPS"
+    config:
+      topic: /clicked_point
+      frame: wgs84
+      is_visible: true
+
+  - type: mapviz_plugins/odometry
+    name: "EKF globale (map)"
+    config:
+      topic: /odometry/global
+      color: "#ffff00"
+      is_visible: true

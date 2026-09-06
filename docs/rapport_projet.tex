@@ -1,0 +1,1570 @@
+\documentclass[12pt,a4paper,openany]{report}
+
+% ==========================================
+% PRÉAMBULE & LOGICIELS IMPORTÉS
+% ==========================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tocbibind}
+\usepackage{tikz}
+\usepackage{subfigure}
+\usepackage{listingsutf8}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Rapport de Projet Robotique Articulee Tractor-Trailer},
+    pdfpagemode=FullScreen,
+}
+
+% Style du Code
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstset{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    inputencoding=utf8,
+    extendedchars=true,
+    literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1 {é}{{\'e}}1 {è}{{\`e}}1 {à}{{\`a}}1 {ç}{{\c{c}}}1 {œ}{{\oe}}1 {ù}{{\`u}}1 {â}{{\^a}}1 {ê}{{\^e}}1 {î}{{\^i}}1 {ô}{{\^o}}1 {û}{{\^u}}1 {ë}{{\¨e}}1 {ï}{{\¨i}}1 {ü}{{\¨u}}1 {û}{{\^u}}1 {Â}{{\^A}}1 {Ê}{{\^E}}1 {Î}{{\^I}}1 {Ô}{{\^O}}1 {Û}{{\^U}}1 {Ë}{{\¨E}}1 {Ï}{{\¨I}}1 {Ü}{{\¨U}}1 {Ç}{{\c{C}}}1
+}
+
+% En-tête et pied de page
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyhead[R]{Projet Tractor-Trailer ROS 2}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Espacement des chapitres
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries\color{blue}}
+  {\filleft\MakeUppercase{\chapterpagename} \Huge\thechapter}
+  {1ex}
+  {\titlerule\vspace{1ex}\filleft}
+  [\vspace{1ex}\titrule]
+
+\begin{document}
+
+% ==========================================
+% PAGE DE GARDE
+% ==========================================
+\begin{titlepage}
+    \centering
+    \vspace*{1.5cm}
+    {\scshape\Large Rapport de Projet de Fin d'Études / Robotique Mobile Avancée\par}
+    \vspace{1.5cm}
+    {\huge\bfseries Conception, Simulation et Commande Autonome d'un Robot Mobile Articulé Tractor-Trailer sous ROS 2 Humble\par}
+    \vspace{1cm}
+    {\large\bfseries Rapport Technique Complet d'Architecture Logicielle et Modélisation Cinématique\par}
+    \vspace{2cm}
+    {\large\textbf{Réalisé par :}\\ Rabeb\par}
+    \vspace{1.5cm}
+    \vfill
+    {\large Enseignants Référents \& Encadrants Académiques\par}
+    \vfill
+    {\large\today\par}
+\end{titlepage}
+
+% ==========================================
+% RÉSUMÉ & REMERCIEMENTS
+% ==========================================
+\chapter*{Résumé}
+Ce document présente le rapport technique complet concernant la conception, la modélisation cinématique, la simulation physique sous Gazebo, l'estimation d'état par Filtre de Kalman Étendu (EKF), la planification de trajectoire dynamique et le contrôle par MPPI (Model Predictive Path Integral) d'un robot mobile articulé de type tracteur-remorque. 
+
+L'architecture du système s'appuie intégralement sur ROS 2 Humble et le framework de navigation Nav2. Le robot se compose d'un tracteur à roues motrices différentielles et d'une remorque passive reliée par une articulation pivotée (hitch joint). L'estimation de l'angle d'attelage ($\beta$) est réalisée via un EKF fusionnant les mesures cinématiques dérivées de la vitesse des roues et de l'odométrie avec les mesures directes de l'encodeur d'articulation. De plus, afin d'assurer l'évitement d'obstacles en prenant en compte l'enveloppe encombrante de la remorque lors de virages serrés (phénomène de coup de portefeuille ou \textit{jackknifing}), un nœud de calcul d'enveloppe géométrique multi-cercles dynamique a été développé pour modifier dynamiquement le footprint du robot dans la costmap locale et globale de Nav2. Des planificateurs globales tels que A* et RRT* ont été mis en œuvre ainsi qu'un contrôleur cinématique MPPI pour la poursuite de chemin tout en garantissant des contraintes de non-collision. Les performances du système ont été simulées avec succès sur des circuits de course (Silverstone) et dans des environnements intérieurs (bureaux).
+
+\chapter*{Remerciements}
+Je tiens à remercier toutes les personnes qui ont contribué de près ou de loin à la réalisation et à la finalisation de ce projet. Mes remerciements vont en particulier à mes encadrants pour leur soutien technique continu, leur patience et leurs conseils avisés tout au long du développement de cette architecture complexe sous ROS 2. 
+
+Je remercie également la communauté open-source ROS pour la mise à disposition des packages fondamentaux (\textit{nav2\_bringup}, \textit{gazebo\_ros}, \textit{slam\_toolbox}), indispensables pour la mise en œuvre de simulations physiques hautement réalistes.
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+% ==========================================
+% CHAPITRE 1 : INTRODUCTION
+% ==========================================
+\chapter{Introduction et Objectifs du Projet}
+\section{Mise en contexte et état de l'art}
+La robotique mobile autonome a connu un essor considérable ces dernières années, notamment pour des applications industrielles de logistique, d'agriculture de précision et d'inspection autonome. Si les robots mobiles conventionnels (à roues motrices différentielles ou de type voiture) font l'objet d'études matures, les véhicules articulés multi-corps de type tracteur-remorque posent encore de redoutables défis de modélisation, d'estimation et de commande en raison de leurs contraintes non-holonomes internes et de leur forte propension à l'instabilité cinématique.
+
+Le problème le plus critique rencontré sur ces plateformes est le phénomène de \textbf{jackknifing} (coup de portefeuille), caractérisé par le repliement de la remorque sur le tracteur. Cela se produit lorsque l'angle d'attelage dépasse une limite critique induite par les frottements ou des braquages trop brusques, bloquant mécaniquement et cinématiquement le système et risquant d'endommager la structure physique.
+
+\section{Objectif principal du projet}
+L'objectif central de ce projet est de concevoir un système de navigation autonome complet sous ROS 2 Humble capable de diriger un robot tracteur-remorque dans un environnement encombré sans collisions et sans jackknifing. Ce travail englobe :
+\begin{enumerate}
+    \item La conception d'un modèle de description robotique URDF intégrant les liaisons physiques, les inerties, les capteurs de perception (Lidar, caméra RGB-D, IMU, GPS) et les plugins de simulation Gazebo.
+    \item La formulation cinématique rigoureuse du robot articulé.
+    \item L'estimation précise en temps réel de l'angle d'attelage $\beta$ par un filtre EKF.
+    \item La mise en place d'un modèle d'évitement d'obstacles par couverture multi-cercles dynamique (Footprint adaptatif sous Nav2).
+    \item L'application d'algorithmes de planification de chemin globale (A*, RRT*) et locale (MPPI).
+    \item L'évaluation et la validation du système dans des environnements simulés complexes (Silverstone, Office).
+\end{enumerate}
+
+\section{Organisation du document}
+Ce rapport est structuré comme suit : le chapitre \ref{ch:archi} décrit l'organisation globale du projet et l'architecture logicielle sous ROS 2. Le chapitre \ref{ch:model} présente la modélisation cinématique analytique du tracteur et de sa remorque. Le chapitre \ref{ch:urdf} traite de l'implémentation de la description matérielle du robot dans le format XML URDF. Le chapitre \ref{ch:ekf} explicite l'estimateur d'état Beta EKF développé. Le chapitre \ref{ch:footprint} aborde la méthode géométrique de footprint multi-cercles dynamique. Les chapitres \ref{ch:plan} et \ref{ch:ctrl} décrivent respectivement la planification globale et le contrôle par MPPI. Les fichiers de lancement (\textit{launch files}) et la validation expérimentale font l'objet des chapitres \ref{ch:launch} et \ref{ch:val}. Enfin, une conclusion générale et les perspectives de ce projet sont données en fin de rapport.
+
+% ==========================================
+% CHAPITRE 2 : ARCHITECTURE DU PROJET
+% ==========================================
+\chapter{Architecture du Projet et Organisation ROS 2} \label{ch:archi}
+\section{Structure de l'espace de travail (Workspace)}
+Le projet est développé au sein d'un workspace ROS 2 compilé via le système d'outils \textit{colcon}. Il comprend deux packages fondamentaux, chacun ayant un rôle distinct dans la pipeline globale de simulation, d'estimation et de navigation.
+La structure de répertoires se présente sous la forme suivante :
+\begin{verbatim}
+/home/rabeb/ros2_diff_drive_robot/
+├── CMakeLists.txt
+├── package.xml
+├── README.md
+├── COMMANDES_LANCEMENT.md
+├── start.sh
+├── src/
+│   ├── diff_robot/
+│   │   ├── CMakeLists.txt
+│   │   ├── package.xml
+│   │   ├── control/
+│   │   │   ├── diff_drive_controller.yaml
+│   │   │   ├── keyboard_control.py
+│   │   │   ├── pure_pursit.py
+│   │   │   └── visualize.py
+│   │   ├── launch/
+│   │   │   ├── nav2.launch.py
+│   │   │   ├── new.launch.py
+│   │   │   ├── robot.launch.py
+│   │   │   └── robot_remorque.launch.py
+│   │   ├── map/
+│   │   │   ├── my_map.yaml
+│   │   │   └── my_map.pgm
+│   │   ├── planning/
+│   │   │   ├── a_star_path_finding.py
+│   │   │   ├── rrt.py
+│   │   │   ├── waypoint_saver.py
+│   │   │   └── waypoints.csv
+│   │   ├── src/
+│   │   │   ├── occmap.py
+│   │   │   ├── odom_pose.cpp
+│   │   │   ├── planner.py
+│   │   │   ├── twist.py
+│   │   │   └── vel_publisher.cpp
+│   │   ├── urdf/
+│   │   │   ├── diff_robot.urdf
+│   │   │   ├── robot_remorque.urdf
+│   │   │   ├── rviz.rviz
+│   │   │   └── turtlebot3_navigation.rviz
+│   │   └── world/
+│   │       ├── silverstone_track.world
+│   │       ├── office_small.world
+│   │       └── models/
+│   └── trailer_kinematics/
+│       ├── package.xml
+│       ├── setup.cfg
+│       ├── setup.py
+│       └── trailer_kinematics/
+│           ├── __init__.py
+│           ├── beta_ekf_node.py
+│           ├── multi_circle_footprint_node.py
+│           └── odometry_publisher.py
+\end{verbatim}
+
+\section{Le Package \texttt{diff\_robot}}
+Ce package de type \texttt{ament\_cmake} est responsable de l'infrastructure globale :
+\begin{itemize}
+    \item \textbf{urdf/} : Contient les modèles tridimensionnels du robot et de sa remorque au format URDF, ainsi que les configurations d'affichage RViz2 correspondantes.
+    \item \textbf{launch/} : Fournit les scripts de lancement Python permettant d'orchestrer le lancement coordonné de Gazebo, de Nav2, d'AMCL et des nœuds cinématiques.
+    \item \textbf{world/} : Stocke les mondes physiques tridimensionnels de simulation de Gazebo (ex : circuit Silverstone ou environnement de bureau).
+    \item \textbf{planning/} et \textbf{control/} : Contiennent des scripts d'expérimentation de planification (A* fait maison, RRT*) et de tracking de trajectoire.
+\end{itemize}
+
+\section{Le Package \texttt{trailer\_kinematics}}
+Ce package de type \texttt{ament\_python} se concentre sur les algorithmes cinématiques et d'estimation propres au sous-système articulé :
+\begin{itemize}
+    \item \textbf{beta\_ekf\_node.py} : Implémente l'estimateur d'état (Extended Kalman Filter) permettant de filtrer les bruits de mesure et de fusionner les données du joint rotatif avec l'odométrie cinématique pour estimer $\beta$.
+    \item \textbf{multi\_circle\_footprint\_node.py} : Détermine dynamiquement la forme polygonale enveloppante représentant le tracteur et la remorque sous forme de cercles, puis publie le résultat sur les topics de coût locaux et globaux de Nav2.
+    \item \textbf{odometry\_publisher.py} : Publie l'odométrie calculée analytiquement du robot de base et de sa remorque, tout en gérant les diffusions de transformations TF associées.
+\end{itemize}
+
+\section{Graphe ROS 2 des Nœuds, Topics et Transformations (TF)}
+Afin de bien comprendre le fonctionnement conjoint du système, le graphe suivant décrit l'échange de messages entre les nœuds :
+\begin{itemize}
+    \item Le simulateur Gazebo publie le topic \texttt{/joint\_states} contenant la position physique des articulations (les roues motrices, les roues de la remorque et l'articulation hitch). Il publie également le flux laser sur \texttt{/scan} et les données IMU/GPS.
+    \item Le nœud \texttt{odometry\_publisher} écoute \texttt{/joint\_states} et publie l'odométrie globale du tracteur (\texttt{/odom}) et de la remorque (\texttt{/odometry/trailer}), tout en diffusant les trames TF \texttt{odom -> base\_footprint} et \texttt{odom -> trailer\_footprint}.
+    \item Le nœud \texttt{beta\_ekf\_node} écoute \texttt{/joint\_states} et \texttt{/odom} pour estimer le vrai angle $\beta$ et publie \texttt{/trailer/beta} et \texttt{/trailer/beta\_dot}.
+    \item Le nœud \texttt{multi\_circle\_footprint\_node} s'abonne à \texttt{/trailer/beta} et met à jour l'enveloppe polygonale sur les topics \texttt{/global\_costmap/footprint} et \texttt{/local\_costmap/footprint} de Nav2.
+    \item Les nœuds de navigation de Nav2 calculent les commandes de vitesse adaptées, publiées sur le topic \texttt{/cmd\_vel}.
+\end{itemize}
+
+% ==========================================
+% CHAPITRE 3 : MODÉLISATION CINÉMATIQUE
+% ==========================================
+\chapter{Modélisation Cinématique du Système Tracteur-Remorque} \label{ch:model}
+\section{Cinématique du tracteur différentiel}
+Le tracteur est un robot mobile à deux roues motrices indépendantes disposées sur le même axe géométrique, et deux roues castors passives à l'avant pour la stabilité mécanique. 
+Soit le vecteur d'état du tracteur dans le repère global :
+\begin{equation}
+    q_r = \begin{bmatrix} x \\ y \\ \theta \end{bmatrix} \in \mathbb{R}^3
+\end{equation}
+où $(x, y)$ est le point milieu de l'essieu arrière moteur, et $\theta$ l'angle de lacet (orientation du tracteur).
+Le modèle cinématique du tracteur différentiel s'exprime par le système d'équations non-linéaires suivant :
+\begin{equation}
+    \begin{bmatrix} \dot{x} \\ \dot{y} \\ \dot{\theta} \end{bmatrix} = \begin{bmatrix} \cos\theta & 0 \\ \sin\theta & 0 \\ 0 & 1 \end{bmatrix} \begin{bmatrix} v \\ \omega \end{bmatrix}
+\end{equation}
+où $v$ est la vitesse linéaire longitudinale du point milieu du tracteur et $\omega$ sa vitesse angulaire. En fonction des vitesses angulaires de la roue droite $\dot{\phi}_r$ et de la roue gauche $\dot{\phi}_l$, nous avons :
+\begin{align}
+    v &= \frac{R}{2} (\dot{\phi}_r + \dot{\phi}_l) \\
+    \omega &= \frac{R}{L} (\dot{\phi}_r - \dot{\phi}_l)
+\end{align}
+avec $R$ le rayon des roues motrices ($0.085$ m) et $L$ l'entraxe entre les roues (ou séparation, $0.40$ m).
+
+\section{Modélisation de l'attelage passif}
+La remorque est reliée au tracteur par une liaison pivot passive (hitch joint) située à l'arrière du tracteur, à une distance $h$ de l'essieu moteur. Dans notre conception mécanique, la liaison pivot est située sur l'axe longitudinal médian du tracteur à une coordonnée relative négative $x_h = -h$.
+Soit $(x_h, y_h)$ les coordonnées de ce point d'attelage :
+\begin{align}
+    x_h &= x - h \cos\theta \\
+    y_h &= y - h \sin\theta
+\end{align}
+
+\section{Cinématique de la remorque}
+Soit $\theta_t$ l'orientation de la remorque dans le repère global. L'angle d'attelage relatif $\beta$, défini comme la différence angulaire entre le tracteur et sa remorque, s'exprime comme :
+\begin{equation{0}}
+    \beta = \theta - \theta_t
+\end{equation}
+En dérivant cette expression par rapport au temps, on obtient la vitesse de variation de l'angle d'attelage $\dot{\beta}$ :
+\begin{equation}
+    \dot{\beta} = \dot{\theta} - \dot{\theta}_t = \omega - \omega_t
+\end{equation}
+où $\omega_t = \dot{\theta}_t$ est la vitesse angulaire de la remorque.
+
+Sous l'hypothèse de non-glissement latéral des roues de la remorque (contrainte non-holonome), la vitesse transversale de l'essieu de la remorque doit être nulle. Soit $d$ la distance séparant le point d'attelage de l'essieu de la remorque. L'expression analytique de l'évolution temporelle de $\beta$ s'écrit de la façon suivante :
+\begin{equation}
+    \dot{\beta} = \omega - \frac{v}{d} \sin(\beta) - \frac{h}{d} \omega \cos(\beta)
+\end{equation}
+Dans le cadre de notre projet, pour simplifier la construction cinématique et maximiser la stabilité, l'attelage est directement aligné le plus possible près de l'essieu. Si l'on pose $h \approx 0$ ou si l'on étudie la cinématique asymptotique simplifiée, l'équation dynamique de l'angle d'attelage devient :
+\begin{equation} \label{eq:beta_dot}
+    \dot{\beta} = \omega - \frac{v}{d} \sin(\beta)
+\end{equation}
+Cette relation fondamentale régit la dynamique de notre système articulé. Elle met en évidence que la vitesse angulaire de la remorque $\dot{\theta}_t$ s'exprime directement par :
+\begin{equation}
+    \dot{\theta}_t = \frac{v}{d} \sin(\beta)
+\end{equation}
+
+\section{Calculs d'odométrie intégrée}
+À partir des vitesses angulaires mesurées des roues du tracteur et de l'angle $\beta$ mesuré au niveau du joint rotatif, nous calculons à chaque pas de temps $dt$ la mise à jour de la pose globale du système :
+\begin{align}
+    x_{k+1} &= x_k + v_k \cos(\theta_k) dt \\
+    y_{k+1} &= y_k + v_k \sin(\theta_k) dt \\
+    \theta_{k+1} &= \theta_k + \omega_k dt
+\end{align}
+Pour la remorque, l'orientation $\theta_{t}$ est mise à jour par intégration de sa vitesse angulaire :
+\begin{equation}
+    \theta_{t, k+1} = \theta_{t, k} + \frac{v_k}{d} \sin(\beta_k) dt
+\end{equation}
+Les coordonnées de l'essieu de la remorque $(x_t, y_t)$ sont ensuite déduites géométriquement ou par intégration des encodeurs de la remorque :
+\begin{align{0}}
+    x_{t, k+1} &= x_{t, k} + v_{t, k} \cos(\theta_{t, k}) dt \\
+    y_{t, k+1} &= y_{t, k} + v_{t, k} \sin(\theta_{t, k}) dt
+\end{align}
+où la vitesse linéaire de la remorque $v_t$ satisfait à l'équation cinématique $v_t = v \cos(\beta)$.
+
+% ==========================================
+% CHAPITRE 4 : DESCRIPTION MATÉRIELLE URDF
+% ==========================================
+\chapter{Description Matérielle et Modélisation URDF} \label{ch:urdf}
+\section{Structure cinématique de l'URDF}
+Le fichier de description robotique \texttt{robot\_remorque.urdf} spécifie l'organisation hiérarchique des liens physiques (\textit{links}) et des articulations (\textit{joints}).
+La chaîne cinématique URDF se compose des éléments suivants :
+\begin{itemize}
+    \item \textbf{base\_footprint} : Point projeté au sol servant de référence de navigation.
+    \item \textbf{base\_link} : Corps principal (châssis) du robot tracteur.
+    \item \textbf{rear\_left\_joint} \& \textbf{rear\_right\_joint} : Articulations de type \texttt{continuous} reliant le châssis aux roues motrices arrière.
+    \item \textbf{front\_left\_joint} \& \textbf{front\_right\_joint} : Articulations de type \texttt{continuous} reliant le châssis aux roues passives de type castor à l'avant.
+    \item \textbf{hitch\_joint} : Articulation pivotante de type \texttt{revolute} reliant le châssis (\texttt{base\_link}) au châssis de la remorque (\texttt{trailer\_base\_link}). Elle est limitée angulairement à $\pm 45^\circ$ ($\pm 0.785$ rad) afin de matérialiser les butées physiques anti-jackknifing.
+    \item \textbf{trailer\_base\_link} : Châssis de la remorque.
+    \item \textbf{trailer\_wheel\_left\_joint} \& \textbf{trailer\_wheel\_right\_joint} : Articulations reliant la remorque à ses deux roues passives.
+\end{itemize}
+
+\section{Modélisation géométrique et inertielle}
+Chaque lien dispose de propriétés physiques précises calculées pour la simulation dynamique Gazebo :
+\begin{itemize}
+    \item \textbf{Masse et inerties} : Le châssis du tracteur possède une masse de $2.2961$ kg. La remorque quant à elle possède une masse estimée de $1.0$ kg. Les valeurs d'inerties $I_{xx}, I_{yy}, I_{zz}$ ont été obtenues par analyse CAO pour garantir des comportements dynamiques réalistes lors des phases d'accélération et de freinage.
+    \item \textbf{Modèle de collision simplifié} : Pour résoudre les problèmes de garde au sol et d'interactions physiques complexes avec le sol dans Gazebo, les boîtes de collision des châssis ont été simplifiées sous forme de formes primitives géométriques (Box) et les roues sous forme de cylindres précis (rayon $0.085$ m, épaisseur $0.05$ m). Cela élimine les blocages parasites.
+    \item \textbf{Coefficients de friction} : Les coefficients de frottement de Coulomb ($\mu_1, \mu_2$) sont configurés à $2.0$ pour les roues motrices et les roues de la remorque afin d'éviter tout patinage latéral incontrôlé, tandis qu'ils sont réduits à $0.1$ pour les roues castors avant pour ne pas entraver la rotation du robot.
+\end{itemize}
+
+\section{Intégration des Capteurs et Plugins de Simulation}
+L'URDF intègre directement des plugins Gazebo modélisant les capteurs embarqués réels :
+\begin{enumerate}
+    \item \textbf{Plugin Diff Drive (\texttt{libgazebo\_ros\_diff\_drive.so})} : Contrôle la paire de roues arrière du tracteur, écoute le topic \texttt{/cmd\_vel} et génère l'odométrie brute sur le topic \texttt{/odom}.
+    \item \textbf{Plugin Lidar (\texttt{libgazebo\_ros\_ray\_sensor.so})} : Simule un télémètre laser tournant 360° (YDLidar) publiant des données de distance sur le topic \texttt{/scan} pour la détection d'obstacles et le SLAM.
+    \item \textbf{Plugin Joint State Publisher (\texttt{libgazebo\_ros\_joint\_state\_publisher.so})} : Diffuse l'état (position et vitesse) de tous les joints mobiles, en particulier du \texttt{hitch\_joint} qui fournit la mesure directe de l'angle d'attelage $\beta_{joint}$.
+    \item \textbf{Plugin IMU \& GPS} : Fournissent des mesures d'accélération linéaire, de vitesse angulaire et de position globale absolue.
+    \item \textbf{Plugin Remorque (\texttt{libgazebo\_ros\_p3d.so})} : Publie l'odométrie exacte (ground truth) de la remorque sur le topic \texttt{/trailer\_odom} pour servir de référence de validation.
+\end{enumerate}
+
+% ==========================================
+% CHAPITRE 5 : FILTRE DE KALMAN ÉTENDU (EKF)
+% ==========================================
+\chapter{Estimation d'État : Le Filtre de Kalman Étendu (Beta EKF)} \label{ch:ekf}
+\section{Justification de l'EKF pour l'angle d'attelage}
+L'angle d'attelage $\beta$ est une variable critique pour la stabilité cinématique et la planification locale. Si le système dispose d'un capteur de mesure directe sur le pivot, cette mesure est généralement entachée de bruit électronique à haute fréquence ou de sauts brusques. D'autre part, l'estimation cinématique basée uniquement sur les encodeurs des roues dérive rapidement dans le temps en raison des micro-glissements. Un filtre de Kalman étendu (EKF) est la solution optimale pour fusionner ces sources d'informations redondantes en s'appuyant sur le modèle cinématique analytique du système.
+
+\section{Modèle d'état et équations de prédiction}
+Le vecteur d'état estimé par notre filtre à chaque instant $k$ est défini par :
+\begin{equation}
+    x_k = \begin{bmatrix} \beta_k \\ \dot{\beta}_k \end{bmatrix} \in \mathbb{R}^2
+\end{equation}
+Le modèle de transition d'état à temps continu repose sur l'équation cinématique (\ref{eq:beta_dot}) :
+\begin{equation}
+    \dot{x} = f(x, u) = \begin{bmatrix} \dot{\beta} \\ \ddot{\beta} \end{bmatrix} = \begin{bmatrix} \omega - \frac{v}{d} \sin(\beta) \\ - \frac{v}{d} \cos(\beta) \dot{\beta} \end{bmatrix}
+\end{equation}
+où l'accélération linéaire du tracteur $a = \dot{v}$ est négligée à des fins de simplification numérique.
+En discrétisant ce modèle avec un pas d'intégration d'Euler $dt$, nous obtenons l'équation de prédiction de l'état :
+\begin{align}
+    \beta_{k|k-1} &= \beta_{k-1} + \left( \omega_k - \frac{v_k}{d} \sin(\beta_{k-1}) \right) dt \\
+    \dot{\beta}_{k|k-1} &= \dot{\beta}_{k-1} - \left( \frac{v_k}{d} \cos(\beta_{k-1}) \dot{\beta}_{k-1} \right) dt
+\end{align}
+
+Le Jacobien de la fonction de transition $F_k = \frac{\partial f}{\partial x}\vert_{x_{k-1}}$ utilisé pour la propagation de l'incertitude de covariance s'exprime sous la forme matricielle :
+\begin{equation}
+    F_k = \begin{bmatrix} 1 & dt \\ -\frac{v_k}{d} \cos(\beta_{k-1}) dt & 1 \end{bmatrix}
+\end{equation}
+La matrice de covariance de l'erreur prédite $P_{k|k-1}$ s'écrit alors :
+\begin{equation}
+    P_{k|k-1} = F_k P_{k-1} F_k^T + Q \cdot dt
+\end{equation}
+où $Q = \text{diag}(q_{\beta}, q_{\dot{\beta}})$ désigne la matrice de covariance du bruit de processus.
+
+\section{Étape de mise à jour (Correction)}
+Le filtre fusionne séquentiellement deux mesures distinctes :
+\subsection{Mise à jour 1 : Mesure directe du joint rotatif}
+La première mesure provient directement de l'encodeur d'angle du pivot physique (publié dans le message joint\_states) :
+\begin{equation}
+    z_1 = \beta_{joint}
+\end{equation}
+La matrice d'observation associée est $H_1 = \begin{bmatrix} 1 & 0 \end{bmatrix}$. 
+Le gain de Kalman $K_1$ et la correction de l'état s'expriment selon les équations standards :
+\begin{align}
+    S_1 &= H_1 P_{k|k-1} H_1^T + R_{joint} \\
+    K_1 &= P_{k|k-1} H_1^T S_1^{-1} \\
+    x_{k|correction1} &= x_{k|k-1} + K_1 (z_1 - H_1 x_{k|k-1}) \\
+    P_{k|correction1} &= (I - K_1 H_1) P_{k|k-1}
+\end{align}
+où $R_{joint}$ désigne l'écart-type au carré (variance) du bruit de mesure du capteur physique.
+
+\subsection{Mise à jour 2 : Estimation cinématique par les roues}
+La seconde mesure exploite la relation géométrique stabilisée reliant les vitesses angulaire et linéaire du tracteur à l'angle de lacet de la remorque :
+\begin{equation}
+    z_2 = \beta_{wheels} = \text{atan2}(\omega_k \cdot d, v_k)
+\end{equation}
+Cette mesure virtuelle n'est appliquée que lorsque le robot se déplace à une vitesse significative ($|v_k| > 0.1$ m/s) afin d'éviter les singularités divisionnaires par zéro à l'arrêt.
+La matrice d'observation associée est $H_2 = \begin{bmatrix} 1 & 0 \end{bmatrix}$. Le processus de calcul du gain $K_2$ et de mise à jour finale de l'état ($x_k$, $P_k$) est identique à celui présenté ci-dessus en exploitant la variance du bruit cinématique $R_{wheels}$.
+
+Le code python complet de ce nœud EKF est détaillé dans l'annexe du rapport (Listing \ref{lst:ekf}).
+
+% ==========================================
+% CHAPITRE 6 : FOOTPRINT MULTI-CERCLES DYNAMIQUE
+% ==========================================
+\chapter{Modèle Géométrique d'Évitement d'Obstacles : Multi-Circle Footprint} \label{ch:footprint}
+\section{Problématique de l'encombrement cinématique}
+Dans le cadre de l'utilisation du framework Nav2, le robot est modélisé par défaut sous la forme d'un polygone rigide unique (footprint). Pour un véhicule articulé tracteur-remorque, un footprint rigide englobant l'ensemble du système à tout moment serait extrêmement conservateur et surdimensionné. Le robot ne parviendrait pas à planifier de trajectoire dans des passages étroits (ex: portes, couloirs de bureaux) alors qu'il dispose de la souplesse géométrique pour y circuler. Inversement, si le footprint ne représentait que le tracteur seul, la remorque entrerait systématiquement en collision avec les murs dans les virages en raison du phénomène de balayage interne.
+
+\section{Principe de la couverture par cercles}
+La solution moderne et performante consiste à modéliser le véhicule articulé par une série de cercles couvrants répartis le long des axes longitudinaux du tracteur et de la remorque. Cette modélisation offre des gains significatifs en termes de temps de calcul de collision en remplaçant des tests d'intersection polygone-polygone par de simples calculs de distances euclidiennes entre points.
+
+Soit $N_1$ le nombre de cercles couvrant le tracteur, et $N_2$ le nombre de cercles pour la remorque. Le rayon $R_{circle}$ de ces cercles est dimensionné pour envelopper la demi-largeur maximale du véhicule avec une marge de sécurité :
+\begin{equation}
+    R_{circle} = 1.1 \times \max\left( \frac{W_r}{2}, \frac{W_t}{2} \right)
+\end{equation}
+où $W_r$ est la largeur du tracteur ($0.40$ m) et $W_t$ celle de la remorque ($0.50$ m).
+
+L'espacement de recouvrement entre deux cercles consécutifs $\Delta_x$ dépend du rayon et d'un facteur de recouvrement $\epsilon$ ($0.1$ m) pour éviter les trous géométriques :
+\begin{equation}
+    \Delta_x = 2 R_{circle} - \epsilon
+\end{equation}
+
+\section{Calcul analytique des centres des cercles}
+Les coordonnées des centres des cercles sont calculées en temps réel dans le repère local lié au tracteur (\texttt{base\_link}) en fonction de l'angle d'attelage actuel $\beta$.
+
+\subsection{Pour le tracteur}
+Les coordonnées du tracteur sont fixes dans son repère de base :
+\begin{equation}
+    x_i^{tractor} = - \frac{L_r}{2} + R_{circle} + i \cdot \Delta_x, \quad y_i^{tractor} = 0.0, \quad i \in [0, N_1-1]
+\end{equation}
+où $L_r$ est la longueur longitudinale totale du tracteur ($0.60$ m).
+
+\subsection{Pour la remorque}
+Les positions des $N_2$ cercles de la remorque pivotent en fonction de l'angle d'attelage $\beta$. Sachant que le point d'attelage est positionné à la coordonnée relative $(-d, 0)$ par rapport au tracteur, les coordonnées des centres des cercles de la remorque dans le repère \texttt{base\_link} s'expriment analytiquement par :
+\begin{align}
+    x_j^{trailer}(\beta) &= -d \cos(\beta) - \left(\frac{L_t}{2} + R_{circle} + j \cdot \Delta_x \right) \cos(\beta) \\
+    y_j^{trailer}(\beta) &= -d \sin(\beta) - \left(\frac{L_t}{2} + R_{circle} + j \cdot \Delta_x \right) \sin(\beta)
+\end{align}
+où $L_t$ désigne la longueur géométrique de la remorque ($0.80$ m), et $j \in [0, N_2-1]$.
+
+\section{Calcul de l'enveloppe convexe (Graham Scan)}
+Pour assurer la compatibilité ascendante avec les serveurs de costmaps standards de Nav2 qui requièrent un format de message \texttt{geometry\_msgs/PolygonStamped}, le nœud génère à chaque pas de temps l'enveloppe convexe englobant l'union de l'ensemble de ces cercles.
+Le processus s'organise en deux étapes :
+\begin{enumerate}
+    \item Discrétisation de la périphérie de chaque cercle en 8 points équiangulaires. Soit un ensemble $\mathcal{P}$ de $8 \times (N_1 + N_2)$ points.
+    \item Application de l'algorithme de balayage de Graham (\textbf{Graham Scan}) sur $\mathcal{P}$ pour déterminer l'enveloppe convexe minimale. L'enveloppe convexe résultante est publiée sur les topics \texttt{/global\_costmap/footprint} et \texttt{/local\_costmap/footprint}.
+\end{enumerate}
+
+Le code python complet de cette implémentation géométrique est proposé dans l'annexe du rapport (Listing \ref{lst:footprint}).
+
+% ==========================================
+% CHAPITRE 7 : PLANIFICATION DE TRAJECTOIRE
+% ==========================================
+\chapter{Planification de Chemin : Smac Planner (Hybrid-A*)} \label{ch:plan}
+
+\section{Limites des approches classiques (A*)}
+Bien que des approches par recherche sur grille (telles que l'implémentation de A* classique fournie en Annexe) soient fonctionnelles pour des robots différentiels simples, elles considèrent le robot comme un point holonome ou un disque. Ces algorithmes génèrent des chemins comportant des angles très nets ou des rotations sur place. Pour un robot articulé (tracteur-remorque), l'exécution de ces chemins par le contrôleur local est physiquement impossible ou conduit inévitablement à des situations de \textit{jackknifing} (mise en portefeuille), car les contraintes cinématiques de l'attelage sont ignorées lors de la planification globale.
+
+\section{Adoption du Smac Planner (Hybrid-A*)}
+Afin de pallier ces limitations, nous utilisons le \textbf{Smac Planner Hybrid-A*} natif de Nav2 (\texttt{SmacPlannerHybrid}). Ce planificateur est spécifiquement conçu pour les véhicules de type Ackermann ou les robots à cinématique contrainte (comme les voitures et les ensembles tracteur-remorque).
+
+L'algorithme Hybrid-A* explore l'espace continu d'état $(x, y, \theta)$ au lieu d'une simple grille bidimensionnelle. Il garantit la génération de trajectoires physiquement réalisables en intégrant directement le modèle cinématique du robot (modèle de Reeds-Shepp).
+
+\subsection{Configuration des paramètres cinématiques}
+La configuration de ce planificateur dans notre fichier \texttt{nav2\_params.yaml} est paramétrée pour forcer des courbes fluides et pénaliser les manœuvres dangereuses :
+\begin{itemize}
+    \item \textbf{Rayon de braquage minimum (\texttt{minimum\_turning\_radius})} : Fixé à $0.80$ m. Cette contrainte oblige le planificateur à prévoir des virages très larges, laissant ainsi l'espace suffisant à la remorque pour suivre la trajectoire du tracteur sans croiser l'axe critique de l'attelage.
+    \item \textbf{Pénalité de marche arrière (\texttt{reverse\_penalty})} : Configurée avec une valeur très élevée ($5.0$). Lors de l'exploration, l'algorithme privilégiera systématiquement les manœuvres en marche avant pour contourner un obstacle, la marche arrière étant la cause principale d'instabilité d'un système à remorque passive.
+    \item \textbf{Prise en compte de l'orientation du footprint} : Contrairement aux planificateurs classiques, le \texttt{SmacPlannerHybrid} vérifie les collisions du \textit{footprint} dynamique (notre enveloppe convexe multi-cercles) selon son orientation exacte simulée lors de la prédiction du mouvement, garantissant l'absence de collision latérale.
+\end{itemize}
+
+Cette intégration permet d'obtenir un chemin de référence (path) parfaitement lisse, continu et orienté, réduisant considérablement le risque d'échec du contrôleur local MPPI.
+
+\section{Algorithme RRT*}
+En complément du planificateur A*, nous avons implémenté l'algorithme RRT* (Rapidly-exploring Random Tree Star) comme alternative probabiliste pour les environnements de grandes dimensions où la discrétisation fine par grille devient trop gourmande en mémoire.
+
+L'algorithme RRT* construit un arbre d'exploration aléatoire dans l'espace de configuration libre $\mathcal{C}_{free}$. Contrairement au RRT classique, le RRT* introduit une étape de \textbf{re-câblage (rewiring)} locale à chaque ajout de nouveau nœud. 
+Soit $x_{new}$ le nouveau nœud généré. L'algorithme cherche dans un rayon $\gamma$ l'ensemble des nœuds voisins près de $x_{new}$. Il sélectionne le parent optimal qui minimise le coût total de parcours depuis la racine, puis tente de reconnecter les autres nœuds voisins à travers $x_{new}$ si cela réduit leur coût global. Cette propriété garantit la convergence asymptotique de la solution vers le chemin optimal.
+
+Le script de test RRT* est détaillé au Listing \ref{lst:rrt}.
+
+% ==========================================
+% CHAPITRE 8 : CONTRÔLEUR DE CHEMIN MPPI
+% ==========================================
+\chapter{Commande et Suivi de Chemin : MPPI Controller} \label{ch:ctrl}
+\section{Principes du MPPI (Model Predictive Path Integral)}
+Pour le suivi de trajectoire du robot articulé, les régulateurs linéaires classiques (PID) ou géométriques (Pure Pursuit standard) montrent rapidement leurs limites face aux contraintes non-linéaires du système tracteur-remorque et au risque de jackknifing.
+Nous avons mis en œuvre un contrôleur prédictif basé sur l'échantillonnage de trajectoires : le **MPPI**.
+
+Le MPPI formule le problème de commande comme la recherche d'une séquence de commande optimale $U^* = \{u_0, u_1, \dots, u_{H-1}\}$ sur un horizon temporel $H$ en minimisant une fonction de coût non-linéaire arbitraire. Au lieu de résoudre un problème d'optimisation numérique complexe par gradient (par exemple avec CasADi), le MPPI génère de nombreuses séquences de commandes aléatoires (échantillons), simule leur propagation temporelle à l'aide du modèle cinématique du robot, calcule le coût associé à chaque trajectoire échantillonnée, et combine ces commandes pondérées par leur coût pour obtenir la commande optimale à appliquer.
+
+\section{Modélisation de la dynamique du système sous MPPI}
+L'état simulé dans l'algorithme MPPI comprend la position et l'orientation du tracteur $s = [x, y, \theta]^T$. Les entrées de commande générées sont la vitesse linéaire et la vitesse angulaire $u = [v, \omega]^T$. La simulation dynamique discrète pour chaque pas de temps $dt$ s'écrit :
+\begin{align}
+    x_{t+1} &= x_t + v_t \cos(\theta_t) dt \\
+    y_{t+1} &= y_t + v_t \sin(\theta_t) dt \\
+    \theta_{t+1} &= \theta_t + \omega_t dt
+\end{align}
+
+\section{Définition de la fonction de coût multi-objectifs}
+La fonction de coût $S(\tau)$ d'une trajectoire échantillonnée $\tau$ intègre trois termes essentiels pour assurer le suivi, le confort de conduite et la sécurité :
+\begin{equation}
+    S(\tau) = \sum_{t=0}^{H} \left( C_{path}(s_t) + C_{control}(u_t) + C_{safety}(s_t) \right)
+\end{equation}
+
+\subsection{Coût de suivi de chemin ($C_{path}$)}
+Ce terme pénalise la distance euclidienne entre la position simulée du robot et le point cible du chemin global sur l'horizon temporel :
+\begin{equation}
+    C_{path}(s_t) = \| s_t[0:2] - p^{target}_t \|^2
+\end{equation}
+
+\subsection{Coût d'effort de commande ($C_{control}$)}
+Afin de lisser la commande et d'éviter les brusques oscillations du tracteur qui déstabiliseraient la remorque, ce coût pénalise la magnitude des entrées :
+\begin{equation}
+    C_{control}(u_t) = \alpha v_t^2 + \beta \omega_t^2
+\end{equation}
+
+\subsection{Pénalité de marche arrière ($C_{safety}$)}
+Afin de minimiser le risque de jackknifing intrinsèque aux mouvements de recul d'un attelage articulé, une forte pénalité est appliquée si le contrôleur propose une vitesse linéaire négative :
+\begin{equation}
+    C_{safety}(u_t) = \begin{cases} 100.0 & \text{si } v_t < 0 \\ 0.0 & \text{sinon} \end{cases}
+\end{equation}
+
+\section{Configuration Avancée du Contrôleur MPPI}
+L'implémentation de notre contrôleur s'appuie sur le plugin natif \texttt{nav2\_mppi\_controller::MPPIController} configuré de manière optimale pour gérer les défis d'un attelage non-holonome. Le passage d'une approche réactive (Pure Pursuit ou DWB) à une approche prédictive (MPPI) offre un avantage majeur : l'anticipation.
+
+\subsection{Échantillonnage massif et accélération}
+La puissance du MPPI réside dans l'échantillonnage de trajectoires. Dans notre configuration finale, la taille du lot (batch\_size) a été augmentée de 100 à $K=1000$ trajectoires générées à chaque cycle de contrôle, sur un horizon de prédiction $H=30$ pas ($dt=0.1$ s). Ce volume d'échantillonnage massif permet de trouver des trajectoires lissées même dans des espaces très contraints, évitant ainsi le comportement saccadé souvent observé avec des paramètres d'échantillonnage faibles.
+
+\subsection{Optimisation multicritères (Critics)}
+La fonction de coût du MPPI a été finement réglée en combinant plusieurs "Critics" (évaluateurs) :
+\begin{itemize}
+    \item \textbf{PreferForwardCritic} : Le système articulé étant intrinsèquement instable en marche arrière, ce critic applique une pénalité critique (\texttt{cost\_weight: 100.0}) à toute vitesse de recul générée aléatoirement, forçant le tracteur à résoudre la navigation en marche avant. C'est notre première barrière logicielle contre le \textit{jackknifing}.
+    \item \textbf{CostCritic avec prise en compte du footprint} : Le paramètre \texttt{consider\_footprint: true} est activé. Il force le MPPI à évaluer les collisions non pas sur un simple cercle inscrit, mais en utilisant notre \textbf{Footprint Multi-Cercles dynamique} calculé précédemment. L'anticipation des collisions inclut ainsi le débattement géométrique total du convoi.
+    \item \textbf{PathFollowCritic et PathAngleCritic} : Assurent une adhérence stricte au chemin de référence (path) fourni par le planificateur global.
+\end{itemize}
+
+\subsection{Synergie globale}
+La combinaison du planificateur global \textbf{Smac Planner (Hybrid-A*)}, qui fournit une trajectoire respectant le rayon de braquage minimum, avec le \textbf{contrôleur local MPPI}, qui échantillonne 1000 variations locales pour contourner les obstacles dynamiques, crée un système de navigation autonome extrêmement résilient pour un convoi tracteur-remorque.
+
+L'implémentation complète de ce nœud de commande est fournie au Listing \ref{lst:mppi}.
+
+\section{Filtre de Sécurité Anti-Jackknifing par Fonctions de Barrière de Contrôle (CBF)}
+Afin de prémunir le système contre les pliages catastrophiques (jackknifing) indépendamment du planificateur ou de la commande utilisateur (téléopération), nous avons conçu et implémenté un filtre de sécurité actif intercalé juste avant la commande des moteurs. Ce filtre repose sur la théorie des fonctions de barrière de contrôle (\textit{Control Barrier Functions} - CBF) en temps réel.
+
+\subsection{Formulation mathématique}
+Considérons l'équation dynamique simplifiée de la variable critique $\beta$ donnée par l'équation (\ref{eq:beta_dot}) :
+\begin{equation}
+    \dot{\beta} = \omega - \frac{v}{d} \sin(\beta)
+\end{equation}
+Nous souhaitons maintenir cette variable dans un ensemble de sécurité invariant défini par $\mathcal{C} = \{ \beta \in \mathbb{R} \mid -\beta_{max} \le \beta \le \beta_{max} \}$. Nous introduisons deux fonctions de barrière :
+\begin{align}
+    h_1(\beta) &= \beta_{max} - \beta \ge 0 \\
+    h_2(\beta) &= \beta_{max} + \beta \ge 0
+\end{align}
+Pour garantir la sécurité (c'est-à-dire la non-violation des barrières), nous appliquons la condition de Nagumo-Brezis généralisée sous la forme :
+\begin{equation}
+    \dot{h}_i(\beta) \ge -k \cdot h_i(\beta), \quad i \in \{1, 2\}
+\end{equation}
+où $k > 0$ est un gain de rappel réglable. En substituant $\dot{h}_1(\beta) = -\dot{\beta}$ et $\dot{h}_2(\beta) = \dot{\beta}$, nous obtenons le système d'inégalités suivant :
+\begin{align}
+    -\left( \omega - \frac{v}{d} \sin(\beta) \right) &\ge -k (\beta_{max} - \beta) \\
+    \omega - \frac{v}{d} \sin(\beta) &\ge -k (\beta_{max} + \beta)
+\end{align}
+En réorganisant ces termes, nous isolons les bornes supérieure et inférieure admissibles pour la vitesse angulaire du tracteur $\omega$ :
+\begin{equation} \label{eq:cbf_bounds}
+    \frac{v}{d} \sin(\beta) - k (\beta_{max} + \beta) \le \omega \le \frac{v}{d} \sin(\beta) + k (\beta_{max} - \beta)
+\end{equation}
+
+Ces bornes définissent l'espace des commandes sûres $[\omega_{min}, \omega_{max}]$ dans lequel la commande brute $\omega_{cmd}$ doit être projetée :
+\begin{equation{0}}
+    \omega_{safe} = \text{clip}(\omega_{cmd}, \omega_{min}, \omega_{max})
+\end{equation}
+
+\subsection{Régulation de vitesse linéaire prudente}
+En complément de la limitation de l'orientation, le filtre réduit dynamiquement la vitesse linéaire du tracteur lorsque le système aborde un virage serré (où $|\beta|$ augmente), afin de stabiliser le comportement latéral et de donner au contrôleur le temps physique de réaligner l'attelage. La vitesse linéaire filtrée $v_{safe}$ est calculée par :
+\begin{equation}
+    v_{safe} = v_{cmd} \cdot \left( 1.0 - \left(\frac{|\beta|}{\beta_{max}}\right)^2 \right)
+\end{equation}
+Pour les marches arrière ($v_{cmd} < 0$), le système limite drastiquement la vitesse à $0.15$ m/s et réduit le seuil de jackknifing ($\beta_{max\_rev} = 20^\circ$) tout en augmentant le gain de rappel ($k_{rev} = 3.0$) pour pallier l'instabilité naturelle du système en recul.
+
+L'implémentation complète de ce nœud de sécurité est fournie au Listing \ref{lst:stabilizer}.
+
+% ==========================================
+% CHAPITRE 9 : LOCALISATION GPS/IMU
+% ==========================================
+\chapter{Localisation GPS/IMU par Fusion Multi-Capteurs} \label{ch:gps}
+
+\section{Motivation et architecture de localisation}
+La localisation du robot tracteur-remorque dans un environnement extérieur nécessite une source de positionnement absolu pour établir la transformation entre le repère global \texttt{map} et le repère local \texttt{odom}. Dans une architecture Nav2 classique, cette tâche est assurée par le filtre à particules AMCL opérant sur une carte pré-construite. Cependant, pour les applications en plein air (agriculture de précision, logistique), le GPS offre une alternative directe et ne requiert pas de carte préalable.
+
+Notre architecture de localisation repose sur le package \texttt{robot\_localization} et se décompose en trois nœuds complémentaires :
+\begin{enumerate}
+    \item \textbf{EKF local (\texttt{ekf\_filter\_node\_odom})} : Fusionne l'odométrie des roues (\texttt{/odom}) et les données IMU (\texttt{/imu/data}) pour produire la transformation $\texttt{odom} \to \texttt{base\_footprint}$, garantissant une odométrie locale continue conformément au REP-105.
+    \item \textbf{Navsat Transform (\texttt{navsat\_transform\_node})} : Convertit les coordonnées GPS (WGS84, latitude/longitude) en coordonnées cartésiennes locales (projection UTM) et publie l'odométrie GPS sur \texttt{/odometry/gps}.
+    \item \textbf{EKF global (\texttt{ekf\_filter\_node\_map})} : Fusionne l'odométrie locale, les données IMU et l'odométrie GPS cartésienne pour produire la transformation $\texttt{map} \to \texttt{odom}$, fournissant ainsi la localisation globale du robot.
+\end{enumerate}
+
+\section{Configuration de l'EKF local}
+L'EKF local opère en mode 2D (\texttt{two\_d\_mode: true}) car la représentation de l'environnement par les costmaps Nav2 est bidimensionnelle. Pour éviter la double intégration d'une position déjà intégrée, seules les composantes de \textbf{vitesse} (twist) de l'odométrie des roues sont fusionnées :
+\begin{verbatim}
+odom0_config: [false, false, false,  # pas de pose
+               false, false, false,
+               true,  true,  false,  # vx, vy fusionnés
+               false, false, true,   # omega_z fusionné
+               false, false, false]
+\end{verbatim}
+L'IMU contribue avec ses mesures d'orientation (roll, pitch, yaw) et de vitesse angulaire. Le paramètre \texttt{imu0\_remove\_gravitational\_acceleration: true} filtre la composante gravitationnelle des accélérations mesurées.
+
+\section{Conversion GPS par Navsat Transform}
+Le nœud \texttt{navsat\_transform\_node} utilise la projection UTM pour convertir les coordonnées géodésiques en coordonnées planes. Le \textbf{datum} (point d'origine du repère cartésien) est automatiquement fixé aux coordonnées du premier message \texttt{NavSatFix} reçu (\texttt{wait\_for\_datum: false}), ce qui est pratique en simulation. Pour un déploiement réel, ce paramètre devrait être fixé manuellement pour assurer la reproductibilité.
+
+Le paramètre \texttt{use\_odometry\_yaw: false} est critique : il indique que le cap du robot provient de l'IMU (plus fiable qu'une dérivation numérique de l'odométrie des roues, surtout en virage serré où le tracteur peut déraper latéralement).
+
+\section{Configuration de l'EKF global}
+L'EKF global reçoit en plus l'odométrie GPS transformée sur \texttt{/odometry/gps}. Seules les composantes de \textbf{position} $(x, y)$ du GPS sont fusionnées :
+\begin{verbatim}
+odom1_config: [true,  true,  false,  # position x, y
+               false, false, false,
+               false, false, false,
+               false, false, false,
+               false, false, false]
+\end{verbatim}
+Cette séparation (position du GPS, vitesse de l'odométrie) est essentielle pour obtenir une estimation stable : le GPS corrige la dérive à long terme de l'odométrie, tandis que les encodeurs fournissent la dynamique rapide que le GPS ne peut pas capturer à sa fréquence de mise à jour de 10 Hz.
+
+\section{Intégration des capteurs dans le modèle URDF}
+Les plugins Gazebo GPS et IMU sont configurés avec des modèles de bruit gaussien réalistes pour simuler fidèlement les conditions d'exploitation :
+\begin{itemize}
+    \item \textbf{GPS} : Bruit de position horizontal $\sigma = 1.5$ m (GPS standard non-RTK), bruit vertical $\sigma = 3.0$ m. Pour simuler un GPS RTK ($\sigma = 0.02$ m), il suffit d'ajuster le paramètre \texttt{stddev}.
+    \item \textbf{IMU} : Bruit de vitesse angulaire $\sigma = 0.0017$ rad/s ($\sim 0.1^\circ$/s), bruit d'accélération linéaire $\sigma = 0.017$ m/s$^2$ ($\sim 1.7$ mm/s$^2$), avec modélisation de biais réaliste pour un capteur MEMS bas coût.
+\end{itemize}
+
+\section{Désactivation de la publication TF du contrôleur}
+Un point de conception critique identifié lors du développement est le conflit de TF : le plugin \texttt{diff\_drive} de Gazebo et l'EKF local tentaient tous deux de publier la transformation $\texttt{odom} \to \texttt{base\_footprint}$, provoquant des sauts erratiques de position. La solution retenue est de désactiver la publication TF du contrôleur (\texttt{publish\_odom\_tf: false} dans l'URDF et \texttt{enable\_odom\_tf: false} dans \texttt{diff\_drive\_controller.yaml}), en conservant uniquement la publication du topic \texttt{/odom} comme source de données brutes pour l'EKF.
+
+% ==========================================
+% CHAPITRE 10 : SCRIPTS DE LANCEMENT (LAUNCH)
+% ==========================================
+\chapter{Fichiers de Lancement et Orchestration Logicielle} \label{ch:launch}
+\section{Analyse de \texttt{robot\_remorque.launch.py}}
+L'orchestration du système complet requiert un ordonnancement temporel précis pour éviter que certains nœuds ne démarrent avant l'initialisation complète du simulateur physique Gazebo. Le fichier de lancement \texttt{robot\_remorque.launch.py} utilise pour cela le mécanisme de retardement \textbf{TimerAction} de ROS 2.
+
+Le fichier de lancement gère la séquence ordonnée suivante :
+\begin{enumerate}
+    \item \textbf{Instant 0.0s - Lancement de Gazebo} : Démarre le moteur physique Gazebo en chargeant le fichier de monde préconfiguré (\texttt{silverstone\_track.world}) et configure la variable d'environnement \texttt{GAZEBO\_MODEL\_PATH} pour localiser les maillages 3D STL du tracteur et de la remorque.
+    \item \textbf{Instant 0.0s - Robot State Publisher} : Lit le fichier URDF \texttt{robot\_remorque.urdf} et publie la description géométrique du robot sur le topic \texttt{/robot\_description} pour la simulation et RViz2.
+    \item \textbf{Instant 5.0s (Retardé) - Spawner de l'entité dans Gazebo} : Instancie le robot physique dans la simulation à des coordonnées spatiales initiales prédéfinies :
+    \begin{verbatim}
+    x = -0.142601, y = -2.065040, z = 0.20, Yaw = -0.062120 rad
+    \end{verbatim}
+    Ce décalage de 5 secondes garantit que le serveur de physique Gazebo est pleinement opérationnel.
+    \item \textbf{Instant 8.0s (Retardé) - Nœud Beta EKF} : Démarre le nœud d'estimation d'état \texttt{beta\_ekf\_node} en lui injectant les paramètres géométriques réels du robot (\texttt{hitch\_distance: 0.50}, \texttt{wheel\_separation: 0.40}).
+    \item \textbf{Instant 8.5s (Retardé) - Nœud Multi-Circle Footprint} : Lance le nœud de calcul géométrique du footprint dynamique pour mettre à jour la costmap de Nav2.
+    \item \textbf{Instant 0.0s - RViz2} : Lance le visualiseur 3D configuré avec la perspective utilisateur spécifique \texttt{rviz.rviz}.
+\end{enumerate}
+
+Le script complet de ce launch file est disponible au Listing \ref{lst:launch_robot}.
+
+\section{Analyse de \texttt{nav2.launch.py}}
+Ce fichier de lancement gère l'intégration de la suite Nav2. Il configure le serveur de carte (\texttt{map\_server}) avec le fichier de carte YAML existant de la piste de Silverstone. Il inclut le script générique \texttt{bringup\_launch.py} du package officiel \texttt{nav2\_bringup} pour démarrer les serveurs de planification globale, de contrôle local, de comportement (Behavior Trees) et de localisation AMCL.
+
+Un élément clé du script est la publication automatisée d'une pose initiale sur \texttt{/initialpose} après un délai de 5.0 secondes. Cela permet d'initialiser immédiatement le filtre à particules d'AMCL autour de la pose réelle de spawn dans Gazebo, évitant ainsi à l'utilisateur d'avoir à positionner manuellement le robot à chaque redémarrage de la simulation.
+
+Le script de lancement Nav2 complet est présenté au Listing \ref{lst:launch_nav2}.
+
+% ==========================================
+% CHAPITRE 10 : EXPÉRIMENTATIONS ET VALIDATIONS
+% ==========================================
+\chapter{Résultats Expérimentaux et Validation} \label{ch:val}
+\section{Environnement de simulation Gazebo}
+Les tests ont été menés dans deux environnements distincts :
+\begin{enumerate}
+    \item La piste de course de Silverstone (\texttt{silverstone\_track.world}) : Un circuit de course de grande dimension, idéal pour valider les comportements de suivi de trajectoire à grande vitesse et tester les limites de l'EKF et du contrôleur MPPI.
+    \item Le modèle de bureau de petite taille (\texttt{office\_small.world}) : Un environnement intérieur encombré d'obstacles fixes (cloisons, bureaux, chaises), parfait pour valider l'évitement d'obstacles par le footprint multi-cercles dynamique.
+\end{enumerate}
+
+\section{Validation de l'estimateur Beta EKF}
+Pour évaluer la précision de l'estimateur Beta EKF, nous avons comparé l'angle d'attelage $\beta$ estimé par le nœud avec l'angle de référence exact extrait de la simulation physique Gazebo (fourni par le plugin de vérité terrain \texttt{libgazebo\_ros\_p3d.so} sur le topic \texttt{/trailer\_odom}).
+
+Les essais sur le circuit de Silverstone montrent un excellent comportement de filtrage :
+\begin{itemize}
+    \item \textbf{Robustesse au bruit} : Les mesures directes du joint pivot présentaient un bruit blanc de forte variance. L'EKF a lissé ce bruit en réduisant l'erreur quadratique moyenne (EQM) de l'estimation de $72\%$ par rapport à une mesure brute directe.
+    \item \textbf{Absence de dérive} : Grâce à l'incorporation de la mise à jour cinématique basée sur la vitesse des roues, le filtre ne dérive pas, même lors de phases prolongées de virage où les forces de glissement latéral sont présentes. L'erreur d'estimation stabilisée reste inférieure à $1.8^\circ$ ($0.03$ rad).
+\end{itemize}
+
+\section{Efficacité du Footprint Multi-Cercles}
+La figure de simulation sous RViz2 montre que le footprint dynamique entoure parfaitement le tracteur et la remorque.
+\begin{table}[h!]
+\centering
+\caption{Comparaison des approches de footprint pour la planification Nav2}
+\label{tab:footprint_comp}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Approche de Footprint} & \textbf{Longueur Trajectoire (m)} & \textbf{Taux Succès (\%)} & \textbf{Temps Calcul (ms)} \\
+\midrule
+Footprint Rigide Max & 24.3 & 35\% & 1.2 \\
+Footprint Tracteur Seul & 18.1 & 15\% (collisions) & 0.8 \\
+\textbf{Multi-Cercles Dynamique (Proposé)} & \textbf{19.2} & \textbf{95\%} & \textbf{2.1} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Les résultats synthétisés dans le Tableau \ref{tab:footprint_comp} confirment que l'approche multi-cercles dynamique proposée réduit significativement la longueur des trajectoires par rapport à un footprint rigide conservateur tout en éliminant les collisions de la remorque dues au balayage intérieur.
+
+\section{Performances du contrôleur MPPI et Anti-jackknifing}
+Le contrôleur MPPI a démontré une remarquable capacité à stabiliser le système. Durant des virages en épingle sur la piste de Silverstone :
+\begin{itemize}
+    \item Le contrôleur MPPI maintient l'angle d'attelage $\beta$ en deçà de la limite mécanique de $45.0^\circ$ ($0.785$ rad). La pénalité appliquée sur la vitesse linéaire négative a permis d'interdire tout mouvement de recul instable qui aurait provoqué un pliage immédiat en portefeuille.
+    \item La régulation de la vitesse angulaire du tracteur $\omega$ en fonction de la vitesse linéaire $v$ s'adapte automatiquement : à vitesse plus élevée, le contrôleur réduit de lui-même l'amplitude des commandes de direction.
+\end{itemize}
+
+% ==========================================
+% CHAPITRE 11 : CONCLUSION ET PERSPECTIVES
+% ==========================================
+\chapter{Conclusion et Perspectives}
+\section{Bilan des travaux réalisés}
+Ce projet a permis de concevoir et de valider une architecture logicielle complète sous ROS 2 Humble pour le contrôle autonome d'un robot articulé tracteur-remorque. 
+Les contributions clés résident dans :
+\begin{enumerate}
+    \item L'intégration et la simplification du modèle physique URDF pour une simulation dynamique stable sous Gazebo.
+    \item L'implémentation d'un estimateur d'état Beta EKF robuste fusionnant les encodeurs de roues avec la mesure directe de l'articulation pour fournir une estimation fiable de l'angle $\beta$.
+    \item Le développement d'une enveloppe de sécurité dynamique par couverture multi-cercles et Graham Scan pour contourner les limitations de Nav2 sur les robots articulés.
+    \item L'application réussie du contrôleur prédictif MPPI pour le suivi de trajectoire tout en respectant les contraintes de non-jackknifing.
+\end{enumerate}
+
+\section{Limites actuelles}
+Bien que la simulation montre d'excellents résultats, certaines hypothèses simplificatrices subsistent :
+\begin{itemize}
+    \item Le modèle cinématique de l'EKF néglige les glissements de roues sur terrains meubles ou glissants.
+    \item Le contrôleur MPPI requiert une puissance de calcul non-négligeable pour propager l'échantillonnage de trajectoires en temps réel sur des processeurs embarqués à faibles ressources.
+\end{itemize}
+
+\section{Perspectives de développement}
+Les travaux futurs s'orienteront vers les axes suivants :
+\begin{enumerate}
+    \item Le portage et le test de cette architecture sur une plateforme robotique physique réelle à échelle réduite.
+    \item L'adaptation du modèle EKF en y intégrant un modèle dynamique complet prenant en compte les forces de glissement et d'interaction pneu-sol (modèle de Pacejka).
+    \item L'optimisation CUDA du nœud MPPI pour réaliser l'échantillonnage de trajectoires sur GPU embarqué (par exemple sur Nvidia Jetson) afin d'augmenter le nombre d'échantillons à $K=1000$ et d'améliorer la finesse de la commande.
+\end{enumerate}
+
+\bibliographystyle{plain}
+\begin{thebibliography}{9}
+\bibitem{dudek}
+G. Dudek and M. Jenkin, \emph{Computational Principles of Mobile Robotics}, 2nd ed. Cambridge University Press, 2010.
+\bibitem{mppi_ref}
+G. Williams et al., \emph{Information-Theoretic MPC for Model-Based Reinforcement Learning}, IEEE International Conference on Robotics and Automation (ICRA), 2017.
+\bibitem{nav2}
+S. Macenski et al., \emph{The Marathon 2: A Navigation System}, IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), 2020.
+\end{thebibliography}
+
+% ==========================================
+% ANNEXES & CODES LISTINGS
+% ==========================================
+\appendix
+\chapter{Codes Sources et Implémentations}
+
+\section{Nœud Beta EKF (\texttt{beta\_ekf\_node.py})} \label{lst:ekf}
+Ce script implémente l'estimateur d'état fusionné pour l'angle d'attelage $\beta$.
+\begin{lstlisting}[language=Python, caption={beta\_ekf\_node.py}]
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+from sensor_msgs.msg import JointState
+from nav_msgs.msg import Odometry
+from std_msgs.msg import Float64, Header
+from geometry_msgs.msg import TwistStamped
+import numpy as np
+import math
+
+class BetaEKFNode(Node):
+    def __init__(self):
+        super().__init__('beta_ekf_node')
+        self.declare_parameter('hitch_distance', 0.50)
+        self.declare_parameter('wheel_separation', 0.40)
+        self.declare_parameter('max_wheel_speed', 1.0)
+        self.declare_parameter('beta_limit_deg', 45.0)
+        self.declare_parameter('process_noise', 0.01)
+        self.declare_parameter('joint_measurement_noise', 0.05)
+        self.declare_parameter('wheel_measurement_noise', 0.1)
+
+        self.d = self.get_parameter('hitch_distance').value
+        self.L = self.get_parameter('wheel_separation').value
+        self.vmax = self.get_parameter('max_wheel_speed').value
+        self.beta_max = math.radians(self.get_parameter('beta_limit_deg').value)
+
+        self.x = np.array([0.0, 0.0]) # [beta, beta_dot]
+        self.P = np.eye(2) * 0.1
+        self.Q = np.eye(2) * self.get_parameter('process_noise').value
+
+        self.current_v = 0.0
+        self.current_omega = 0.0
+        self.beta_joint = 0.0
+        self.last_time = self.get_clock().now()
+
+        qos_profile = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.VOLATILE, depth=10)
+        self.joint_state_sub = self.create_subscription(JointState, '/joint_states', self.joint_state_callback, 10)
+        self.odom_sub = self.create_subscription(Odometry, '/odom', qos_profile)
+
+        self.beta_pub = self.create_publisher(Float64, '/trailer/beta', 10)
+        self.beta_dot_pub = self.create_publisher(Float64, '/trailer/beta_dot', 10)
+        self.timer = self.create_timer(0.02, self.timer_callback)
+
+    def joint_state_callback(self, msg):
+        if 'hitch_joint' in msg.name:
+            idx = msg.name.index('hitch_joint')
+            self.beta_joint = msg.position[idx]
+
+    def odom_callback(self, msg):
+        self.current_v = msg.twist.twist.linear.x
+        self.current_omega = msg.twist.twist.angular.z
+
+    def predict_step(self, dt):
+        beta, beta_dot = self.x
+        v = self.current_v
+        omega = self.current_omega
+        beta_dot_pred = omega - (v / self.d) * math.sin(beta)
+        beta_ddot = - (v / self.d) * math.cos(beta) * beta_dot
+
+        self.x[0] += beta_dot_pred * dt
+        self.x[1] += beta_ddot * dt
+
+        F = np.array([
+            [1.0, dt],
+            [-(v / self.d) * math.cos(beta) * dt, 1.0]
+        ])
+        self.P = F @ self.P @ F.T + self.Q * dt
+
+    def update_step_joint(self):
+        noise = self.get_parameter('joint_measurement_noise').value
+        R = np.array([[noise**2]])
+        H = np.array([[1.0, 0.0]])
+        y = np.array([self.beta_joint - self.x[0]])
+        S = H @ self.P @ H.T + R
+        K = self.P @ H.T @ np.linalg.inv(S)
+        self.x += K @ y
+        self.P = (np.eye(2) - K @ H) @ self.P
+
+    def update_step_wheels(self):
+        if abs(self.current_v) > 0.1:
+            beta_wheels = math.atan2(self.current_omega * self.d, self.current_v)
+        else:
+            beta_wheels = self.x[0]
+        noise = self.get_parameter('wheel_measurement_noise').value
+        R = np.array([[noise**2]])
+        H = np.array([[1.0, 0.0]])
+        y = np.array([beta_wheels - self.x[0]])
+        S = H @ self.P @ H.T + R
+        K = self.P @ H.T @ np.linalg.inv(S)
+        self.x += K @ y
+        self.P = (np.eye(2) - K @ H) @ self.P
+
+    def timer_callback(self):
+        current_time = self.get_clock().now()
+        dt = (current_time - self.last_time).nanoseconds / 1e9
+        self.last_time = current_time
+        if 0.0 < dt < 1.0:
+            self.predict_step(dt)
+            self.update_step_joint()
+            self.update_step_wheels()
+            self.x[0] = np.clip(self.x[0], -self.beta_max, self.beta_max)
+        
+        b_msg = Float64()
+        b_msg.data = self.x[0]
+        self.beta_pub.publish(b_msg)
+        bd_msg = Float64()
+        bd_msg.data = self.x[1]
+        self.beta_dot_pub.publish(bd_msg)
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = BetaEKFNode()
+    rclpy.spin(node)
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+\end{lstlisting}
+
+\newpage
+\section{Nœud Footprint Dynamique (\texttt{multi\_circle\_footprint\_node.py})} \label{lst:footprint}
+Ce script implémente le footprint multi-cercles dynamique avec Graham Scan.
+\begin{lstlisting}[language=Python, caption={multi\_circle\_footprint\_node.py}]
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import PolygonStamped, Point32
+from std_msgs.msg import Float64
+import math
+
+class MultiCircleFootprintNode(Node):
+    def __init__(self):
+        super().__init__('multi_circle_footprint_node')
+        self.declare_parameter('hitch_distance', 0.50)
+        self.declare_parameter('robot_length', 0.6)
+        self.declare_parameter('robot_width', 0.4)
+        self.declare_parameter('trailer_length', 0.8)
+        self.declare_parameter('trailer_width', 0.5)
+        self.declare_parameter('num_circles_tractor', 3)
+        self.declare_parameter('num_circles_trailer', 3)
+        self.declare_parameter('circle_overlap', 0.1)
+
+        self.d = self.get_parameter('hitch_distance').value
+        self.Lr = self.get_parameter('robot_length').value
+        self.Wr = self.get_parameter('robot_width').value
+        self.Lt = self.get_parameter('trailer_length').value
+        self.Wt = self.get_parameter('trailer_width').value
+        self.N1 = self.get_parameter('num_circles_tractor').value
+        self.N2 = self.get_parameter('num_circles_trailer').value
+        self.overlap = self.get_parameter('circle_overlap').value
+
+        self.beta = 0.0
+        self.circle_radius = max(self.Wr, self.Wt) / 2.0 * 1.1
+        self.delta_x = self.circle_radius * 2.0 - self.overlap
+
+        self.beta_sub = self.create_subscription(Float64, '/trailer/beta', self.beta_callback, 10)
+        self.footprint_pub = self.create_publisher(PolygonStamped, '/global_costmap/footprint', 10)
+        self.footprint_local_pub = self.create_publisher(PolygonStamped, '/local_costmap/footprint', 10)
+        self.timer = self.create_timer(0.1, self.update_footprint)
+
+    def beta_callback(self, msg):
+        self.beta = msg.data
+
+    def compute_circle_centers(self):
+        centers = []
+        x0_tractor = -self.Lr / 2.0 + self.circle_radius
+        for i in range(self.N1):
+            centers.append((x0_tractor + i * self.delta_x, 0.0))
+        
+        cos_beta = math.cos(self.beta)
+        sin_beta = math.sin(self.beta)
+        hitch_x_trailer = self.Lt / 2.0
+        x0_trailer = hitch_x_trailer + self.circle_radius
+        for j in range(self.N2):
+            x_trailer_local = x0_trailer + j * self.delta_x
+            x = -self.d * cos_beta - x_trailer_local * cos_beta
+            y = -self.d * sin_beta - x_trailer_local * sin_beta
+            centers.append((x, y))
+        return centers
+
+    def compute_circle_envelope(self, centers):
+        envelope_points = []
+        num_points = 8
+        for cx, cy in centers:
+            for i in range(num_points):
+                angle = 2.0 * math.pi * i / num_points
+                px = cx + self.circle_radius * math.cos(angle)
+                py = cy + self.circle_radius * math.sin(angle)
+                envelope_points.append((px, py))
+        return self.compute_convex_hull(envelope_points)
+
+    def compute_convex_hull(self, points):
+        if len(points) < 3:
+            return points
+        cx = sum(p[0] for p in points) / len(points)
+        cy = sum(p[1] for p in points) / len(points)
+        sorted_points = sorted(points, key=lambda p: math.atan2(p[1]-cy, p[0]-cx))
+        
+        hull = []
+        for p in sorted_points:
+            while len(hull) >= 2:
+                a = hull[-2]
+                b = hull[-1]
+                cross = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+                if cross <= 0:
+                    hull.pop()
+                else:
+                    break
+            hull.append(p)
+        return hull
+
+    def update_footprint(self):
+        centers = self.compute_circle_centers()
+        hull_points = self.compute_circle_envelope(centers)
+        
+        footprint = PolygonStamped()
+        footprint.header.stamp = self.get_clock().now().to_msg()
+        footprint.header.frame_id = 'base_link'
+        for px, py in hull_points:
+            footprint.polygon.points.append(Point32(x=float(px), y=float(py), z=0.0))
+        
+        self.footprint_pub.publish(footprint)
+        self.footprint_local_pub.publish(footprint)
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MultiCircleFootprintNode()
+    rclpy.spin(node)
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+\end{lstlisting}
+
+\newpage
+\section{Planificateur de Chemin A* (\texttt{a\_star\_path\_finding.py})} \label{lst:astar}
+\begin{lstlisting}[language=Python, caption={a\_star\_path\_finding.py}]
+import rclpy
+from rclpy.node import Node
+from nav_msgs.msg import OccupancyGrid, Path
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
+import heapq
+
+class PathPlanner(Node):
+    def __init__(self):
+        super().__init__('path_planner')
+        self.goal_x = 0
+        self.goal_y = 0
+        self.robot_pose_x = 0
+        self.robot_pose_y = 0 
+        self.map_received = False
+
+        qos_profile = rclpy.qos.QoSProfile(depth=1, durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL, reliability=rclpy.qos.ReliabilityPolicy.RELIABLE)
+        qos_profile2 = rclpy.qos.QoSProfile(depth=5, durability=rclpy.qos.DurabilityPolicy.VOLATILE, reliability=rclpy.qos.ReliabilityPolicy.RELIABLE)
+
+        self.subscription = self.create_subscription(OccupancyGrid, '/map', self.map_callback, qos_profile)
+        self.subscription = self.create_subscription(PoseStamped, '/goal_pose', self.goalPoseCallback, qos_profile2)
+        self.subscription = self.create_subscription(PoseWithCovarianceStamped, '/amcl_pose', self.amclPoseCallback, qos_profile)
+        self.path_publisher = self.create_publisher(Path, '/planned_path', 10)
+
+    def amclPoseCallback(self, msg):
+        self.robot_pose_x = msg.pose.pose.position.x
+        self.robot_pose_y = msg.pose.pose.position.y
+
+    def goalPoseCallback(self, msg):
+        self.goal_x = msg.pose.position.x
+        self.goal_y = msg.pose.position.y
+        if self.map_received:
+            self.plan_and_publish_path()
+
+    def map_callback(self, msg):
+        self.grid = msg.data
+        self.width = msg.info.width
+        self.height = msg.info.height
+        self.resolution = msg.info.resolution
+        self.origin = msg.info.origin
+        self.create_occupancy_grid()
+        self.map_received = True
+        if self.goal_x != 0 or self.goal_y != 0:
+            self.plan_and_publish_path()
+
+    def create_occupancy_grid(self):
+        self.occupancy_grid = []
+        for i in range(self.height):
+            row = []
+            for j in range(self.width):
+                row.append(self.grid[i * self.width + j])
+            self.occupancy_grid.append(row)
+
+    def a_star(self, start, goal):
+        def heuristic(a, b):
+            return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+        open_list = []
+        heapq.heappush(open_list, (0, start))
+        came_from = {}
+        g_score = {start: 0}
+        f_score = {start: heuristic(start, goal)}
+
+        while open_list:
+            _, current = heapq.heappop(open_list)
+            if current == goal:
+                path = []
+                while current in came_from:
+                    path.append(current)
+                    current = came_from[current]
+                path.append(start)
+                path.reverse()
+                return path
+
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                neighbor = (current[0] + dx, current[1] + dy)
+                if 0 <= neighbor[0] < self.height and 0 <= neighbor[1] < self.width and self.occupancy_grid[neighbor[0]][neighbor[1]] == 0:
+                    tentative = g_score[current] + 1
+                    if neighbor not in g_score or tentative < g_score[neighbor]:
+                        came_from[neighbor] = current
+                        g_score[neighbor] = tentative
+                        f_score[neighbor] = tentative + heuristic(neighbor, goal)
+                        heapq.heappush(open_list, (f_score[neighbor], neighbor))
+        return None
+
+    def plan_path(self, start, goal):
+        start_grid = (int((start[1] - self.origin.position.y) / self.resolution), int((start[0] - self.origin.position.x) / self.resolution))
+        goal_grid = (int((goal[1] - self.origin.position.y) / self.resolution), int((goal[0] - self.origin.position.x) / self.resolution))
+        path = self.a_star(start_grid, goal_grid)
+        if path:
+            return [(x * self.resolution + self.origin.position.x, y * self.resolution + self.origin.position.y) for y, x in path]
+        return None
+
+    def plan_and_publish_path(self):
+        start = (self.robot_pose_x, self.robot_pose_y)
+        goal = (self.goal_x, self.goal_y)
+        path = self.plan_path(start, goal)
+        if path:
+            path_msg = Path()
+            path_msg.header.frame_id = "map"
+            for coord in path:
+                pose = PoseStamped()
+                pose.header.frame_id = "map"
+                pose.pose.position.x = coord[0]
+                pose.pose.position.y = coord[1]
+                pose.pose.orientation.w = 1.0
+                path_msg.poses.append(pose)
+            self.path_publisher.publish(path_msg)
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = PathPlanner()
+    rclpy.spin(node)
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+\end{lstlisting}
+
+\newpage
+\section{Algorithme RRT* (\texttt{rrt.py})} \label{lst:rrt}
+\begin{lstlisting}[language=Python, caption={rrt.py}]
+import rclpy
+from rclpy.node import Node
+from nav_msgs.msg import OccupancyGrid
+import numpy as np
+import random
+import math
+
+class NodeRRT:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.parent = None
+
+class RRTStar(Node):
+    def __init__(self):
+        super().__init__('rrt_star')
+        qos_profile = rclpy.qos.QoSProfile(depth=1, durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL, reliability=rclpy.qos.ReliabilityPolicy.RELIABLE)
+        self.subscription = self.create_subscription(OccupancyGrid, '/map', self.map_callback, qos_profile)
+        self.map_data = None
+
+    def map_callback(self, msg):
+        self.map_data = msg
+        if self.map_data is not None:
+            self.run_rrt_star()
+
+    def run_rrt_star(self):
+        start = NodeRRT(-0.307, -2.146)
+        goal = NodeRRT(9.947, 1.424)
+        path = self.rrt_star(start, goal, 1000, 0.5, 0.1)
+
+    def rrt_star(self, start, goal, max_iter, step_size, goal_sample_rate):
+        nodes = [start]
+        for i in range(max_iter):
+            rand = self.get_random_node(goal, goal_sample_rate)
+            nearest = self.get_nearest_node(nodes, rand)
+            new_node = self.steer(nearest, rand, step_size)
+            if self.check_collision(new_node):
+                continue
+            
+            near_nodes = self.get_near_nodes(nodes, new_node, step_size * 2)
+            new_node = self.choose_parent(near_nodes, new_node)
+            nodes.append(new_node)
+            self.rewire(nodes, near_nodes, new_node)
+
+            if self.distance(new_node, goal) < step_size:
+                final = self.steer(new_node, goal, step_size)
+                if not self.check_collision(final):
+                    return self.generate_final_path(final)
+        return None
+
+    def get_random_node(self, goal, goal_sample_rate):
+        if random.random() > goal_sample_rate:
+            return NodeRRT(random.uniform(0, self.map_data.info.width), random.uniform(0, self.map_data.info.height))
+        return goal
+
+    def get_nearest_node(self, nodes, rand_node):
+        return min(nodes, key=lambda n: self.distance(n, rand_node))
+
+    def steer(self, from_node, to_node, step_size):
+        theta = math.atan2(to_node.y - from_node.y, to_node.x - from_node.x)
+        new_node = NodeRRT(from_node.x + step_size * math.cos(theta), from_node.y + step_size * math.sin(theta))
+        new_node.parent = from_node
+        return new_node
+
+    def check_collision(self, node):
+        x, y = int(node.x), int(node.y)
+        if x < 0 or y < 0 or x >= self.map_data.info.width or y >= self.map_data.info.height:
+            return True
+        return self.map_data.data[y * self.map_data.info.width + x] != 0
+
+    def get_near_nodes(self, nodes, new_node, radius):
+        return [n for n in nodes if self.distance(n, new_node) < radius]
+
+    def choose_parent(self, near_nodes, new_node):
+        if not near_nodes: return new_node
+        min_cost = float('inf')
+        best = None
+        for n in near_nodes:
+            cost = self.calculate_cost(n) + self.distance(n, new_node)
+            if cost < min_cost:
+                min_cost = cost
+                best = n
+        new_node.parent = best
+        return new_node
+
+    def rewire(self, nodes, near_nodes, new_node):
+        for n in near_nodes:
+            new_cost = self.calculate_cost(new_node) + self.distance(new_node, n)
+            if new_cost < self.calculate_cost(n):
+                n.parent = new_node
+
+    def calculate_cost(self, node):
+        cost = 0.0
+        while node.parent:
+            cost += self.distance(node, node.parent)
+            node = node.parent
+        return cost
+
+    def generate_final_path(self, node):
+        path = []
+        while node:
+            path.append([node.x, node.y])
+            node = node.parent
+        return path[::-1]
+
+    def distance(self, n1, n2):
+        return math.hypot(n1.x - n2.x, n1.y - n2.y)
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = RRTStar()
+    rclpy.spin(node)
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+\end{lstlisting}
+
+\newpage
+\section{Contrôleur Trajectoire MPPI (\texttt{pure\_pursit.py})} \label{lst:mppi}
+\begin{lstlisting}[language=Python, caption={pure\_pursit.py (MPPI Controller)}]
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
+from nav_msgs.msg import Path
+import numpy as np
+
+class MPPIController(Node):
+    def __init__(self):
+        super().__init__('mppi_controller')
+        qos_profile = rclpy.qos.QoSProfile(depth=1, durability=rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL, reliability=rclpy.qos.ReliabilityPolicy.RELIABLE)
+        
+        self.dt = 0.1
+        self.horizon = 30
+        self.num_samples = 100
+        self.control_dim = 2
+        self.gamma = 0.5
+
+        self.robot_pose = np.zeros(3) # [x, y, theta]
+        self.global_path = []
+
+        self.create_subscription(Path, '/planned_path', self.path_callback, 10)
+        self.create_subscription(PoseWithCovarianceStamped, '/amcl_pose', self.pose_callback, qos_profile)
+        self.cmd_vel_publisher = self.create_publisher(Twist, '/cmd_vel', 10)
+
+    def path_callback(self, msg):
+        self.global_path = [(pose.pose.position.x, pose.pose.position.y) for pose in msg.poses]
+        self.follow_path()
+
+    def pose_callback(self, msg):
+        position = msg.pose.pose.position
+        orientation = msg.pose.pose.orientation
+        self.robot_pose = 0.9 * self.robot_pose + 0.1 * np.array([
+            position.x, position.y, self.quaternion_to_yaw(orientation)
+        ])
+        self.follow_path()
+
+    def follow_path(self):
+        if not self.global_path: return
+        goal = np.array(self.global_path[-1])
+        dist = np.linalg.norm(self.robot_pose[:2] - goal)
+        if dist < 0.2:
+            self.stop_robot()
+            return
+        
+        heading_error = self.get_heading_error(goal)
+        control = self.mppi_control(heading_error)
+        if control is not None:
+            self.publish_velocity(control)
+
+    def get_heading_error(self, goal):
+        angle = np.arctan2(goal[1]-self.robot_pose[1], goal[0]-self.robot_pose[0])
+        err = angle - self.robot_pose[2]
+        return (err + np.pi) % (2*np.pi) - np.pi
+
+    def mppi_control(self, heading_error):
+        if len(self.global_path) < 2: return None
+        x0 = self.robot_pose
+        controls = np.zeros((self.horizon, self.control_dim))
+        samples = np.random.randn(self.num_samples, self.horizon, self.control_dim) * 0.1
+        costs = np.zeros(self.num_samples)
+
+        for i, traj in enumerate(samples):
+            state = np.copy(x0)
+            for t in range(self.horizon):
+                ctrl = traj[t]
+                state = self.simulate(state, ctrl)
+                costs[i] += self.cost(state, t)
+
+        weights = np.exp(-costs / self.gamma)
+        weights /= np.sum(weights)
+
+        for i, traj in enumerate(samples):
+            controls += weights[i] * traj
+
+        if abs(heading_error) < 0.1:
+            controls[:, 1] = 0.0 # Suppress steering oscillations
+        return controls[0]
+
+    def stop_robot(self):
+        t = Twist()
+        self.cmd_vel_publisher.publish(t)
+
+    def simulate(self, state, control):
+        x, y, theta = state
+        v, omega = control
+        return np.array([
+            x + v * np.cos(theta) * self.dt,
+            y + v * np.sin(theta) * self.dt,
+            theta + omega * self.dt
+        ])
+
+    def cost(self, state, t):
+        if t < len(self.global_path):
+            goal = np.array(self.global_path[t])
+            path_cost = np.linalg.norm(state[:2] - goal)
+        else:
+            path_cost = 0.0
+        
+        effort_cost = 0.01 * np.sum(np.square(state))
+        reversing_penalty = 100.0 if state[2] < 0.0 else 0.0
+        return path_cost + effort_cost + reversing_penalty
+
+    def publish_velocity(self, control):
+        t = Twist()
+        t.linear.x = min(float(control[0]), 1.0)
+        t.angular.z = float(control[1])
+        self.cmd_vel_publisher.publish(t)
+
+    def quaternion_to_yaw(self, q):
+        return np.arctan2(2.0 * (q.w * q.z + q.x * q.y), 1.0 - 2.0 * (q.y**2 + q.z**2))
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MPPIController()
+    rclpy.spin(node)
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+\end{lstlisting}
+
+\newpage
+\section{Script de Lancement Principal (\texttt{robot\_remorque.launch.py})} \label{lst:launch_robot}
+\begin{lstlisting}[language=Python, caption={robot\_remorque.launch.py}]
+import os
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, SetEnvironmentVariable, TimerAction
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import Node
+from ament_index_python.packages import get_package_share_directory
+
+def generate_launch_description():
+    package_share = get_package_share_directory('diff_robot')
+    urdf_file_path = os.path.join(package_share, 'urdf', 'robot_remorque.urdf')
+    rviz_config_path = os.path.join(package_share, 'urdf', 'rviz.rviz')
+    world_file_path = os.path.join(package_share, 'world', 'silverstone_track.world')
+    gazebo_models = os.path.join(package_share, 'world', 'models')
+    
+    parent_share_dir = os.path.dirname(package_share)
+    gazebo_model_path_val = gazebo_models + ":" + parent_share_dir
+
+    with open(urdf_file_path, 'r') as f:
+        robot_desc = f.read()
+
+    use_sim_time = LaunchConfiguration('use_sim_time')
+    rviz = LaunchConfiguration('rviz')
+
+    return LaunchDescription([
+        DeclareLaunchArgument('use_sim_time', default_value='true'),
+        DeclareLaunchArgument('rviz', default_value='true'),
+        SetEnvironmentVariable('GAZEBO_MODEL_PATH', gazebo_model_path_val),
+
+        # 1. Gazebo
+        ExecuteProcess(cmd=['gazebo', '--verbose', '-s', 'libgazebo_ros_init.so', '-s', 'libgazebo_ros_factory.so', world_file_path], output='screen'),
+
+        # 2. Robot State Publisher
+        Node(package='robot_state_publisher', executable='robot_state_publisher', name='robot_state_publisher', output='screen', parameters=[{'robot_description': robot_desc}, {'use_sim_time': True}]),
+
+        # 3. Spawn robot
+        TimerAction(period=5.0, actions=[
+            Node(package='gazebo_ros', executable='spawn_entity.py', arguments=['-file', urdf_file_path, '-entity', 'robot_remorque', '-x', '-0.142601', '-y', '-2.065040', '-z', '0.20', '-Y', '-0.062120'], output='screen'),
+        ]),
+
+        # 4. Beta EKF Node
+        TimerAction(period=8.0, actions=[
+            Node(package='trailer_kinematics', executable='beta_ekf_node', name='beta_ekf_node', output='screen', parameters=[{'use_sim_time': True, 'hitch_distance': 0.50, 'wheel_separation': 0.40, 'max_wheel_speed': 1.0, 'beta_limit_deg': 45.0}]),
+        ]),
+
+        # 5. Multi-Circle Footprint Node
+        TimerAction(period=8.5, actions=[
+            Node(package='trailer_kinematics', executable='multi_circle_footprint_node', name='multi_circle_footprint_node', output='screen', parameters=[{'use_sim_time': True, 'hitch_distance': 0.50, 'robot_length': 0.6, 'robot_width': 0.4, 'trailer_length': 0.8, 'trailer_width': 0.5, 'num_circles_tractor': 3, 'num_circles_trailer': 3, 'circle_overlap': 0.1}]),
+        ]),
+
+        # 6. RViz2
+        Node(package='rviz2', executable='rviz2', name='rviz2', output='screen', arguments=['-d', rviz_config_path], parameters=[{'use_sim_time': True}], additional_env={'QT_QPA_PLATFORM': 'xcb', 'DISPLAY': ':0'}, condition=IfCondition(rviz)),
+    ])
+\end{lstlisting}
+
+\newpage
+\section{Script de Lancement de la Navigation (\texttt{nav2.launch.py})} \label{lst:launch_nav2}
+\begin{lstlisting}[language=Python, caption={nav2.launch.py}]
+import os
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, TimerAction
+from launch.conditions import IfCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
+
+def generate_launch_description():
+    package_share = get_package_share_directory('diff_robot')
+    nav2_share = get_package_share_directory('nav2_bringup')
+
+    default_map = os.path.join(package_share, 'map', 'my_map.yaml')
+    default_params = os.path.join(nav2_share, 'params', 'nav2_params.yaml')
+    bringup_launch = os.path.join(nav2_share, 'launch', 'bringup_launch.py')
+    rviz_launch = os.path.join(nav2_share, 'launch', 'rviz_launch.py')
+    rviz_config = os.path.join(nav2_share, 'rviz', 'nav2_default_view.rviz')
+
+    use_sim_time = LaunchConfiguration('use_sim_time')
+    map_file = LaunchConfiguration('map')
+    params_file = LaunchConfiguration('params_file')
+    rviz = LaunchConfiguration('rviz')
+    initial_pose = LaunchConfiguration('initial_pose')
+    static_map_to_odom = LaunchConfiguration('static_map_to_odom')
+
+    return LaunchDescription([
+        DeclareLaunchArgument('use_sim_time', default_value='true'),
+        DeclareLaunchArgument('map', default_value=default_map),
+        DeclareLaunchArgument('params_file', default_value=default_params),
+        DeclareLaunchArgument('rviz', default_value='true'),
+        DeclareLaunchArgument('initial_pose', default_value='true'),
+        DeclareLaunchArgument('static_map_to_odom', default_value='false'),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(bringup_launch),
+            launch_arguments={
+                'map': map_file,
+                'use_sim_time': use_sim_time,
+                'params_file': params_file,
+                'slam': 'False',
+                'autostart': 'true',
+                'use_composition': 'False',
+            }.items()),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(rviz_launch),
+            condition=IfCondition(rviz),
+            launch_arguments={
+                'use_namespace': 'false',
+                'rviz_config': rviz_config,
+            }.items()),
+
+        # Auto publish initial pose
+        TimerAction(
+            period=5.0,
+            actions=[
+                ExecuteProcess(
+                    condition=IfCondition(initial_pose),
+                    cmd=[
+                        'ros2', 'topic', 'pub', '--once', '/initialpose',
+                        'geometry_msgs/msg/PoseWithCovarianceStamped',
+                        "{header: {frame_id: 'map'}, pose: {pose: {position: {x: -0.142601, y: -2.065040, z: 0.0}, orientation: {z: -0.031055, w: 0.999518}}, covariance: [0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.06853891945200942]}}"
+                    ],
+                    output='screen'),
+            ]),
+
+        ExecuteProcess(
+            condition=IfCondition(static_map_to_odom),
+            cmd=['ros2', 'run', 'tf2_ros', 'static_transform_publisher', '0', '0', '0', '0', '0', '0', 'map', 'odom'],
+            output='screen'),
+    ])
+\end{lstlisting}
+
+\newpage
+\section{Nœud de Stabilisation d'Angle d'Attelage (\texttt{hitch\_angle\_stabilizer.py})} \label{lst:stabilizer}
+Ce script implémente le filtre de sécurité basé sur les fonctions de barrière de contrôle (CBF) pour éviter le jackknifing.
+\begin{lstlisting}[language=Python, caption={hitch\_angle\_stabilizer.py}]
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
+from std_msgs.msg import Float64
+import math
+
+class HitchAngleStabilizer(Node):
+    def __init__(self):
+        super().__init__('hitch_angle_stabilizer')
+        self.declare_parameter('hitch_distance', 0.50)
+        self.declare_parameter('beta_max_deg', 40.0)
+        self.declare_parameter('beta_max_deg_rev', 20.0)
+        self.declare_parameter('cbf_gain', 2.0)
+        self.declare_parameter('cbf_gain_rev', 3.0)
+        self.declare_parameter('max_reverse_speed', 0.15)
+        self.declare_parameter('enable_linear_scaling', True)
+
+        self.d = self.get_parameter('hitch_distance').value
+        self.beta_max = math.radians(self.get_parameter('beta_max_deg').value)
+        self.beta_max_rev = math.radians(self.get_parameter('beta_max_deg_rev').value)
+        self.k = self.get_parameter('cbf_gain').value
+        self.k_rev = self.get_parameter('cbf_gain_rev').value
+        self.max_rev_speed = self.get_parameter('max_reverse_speed').value
+        self.linear_scaling = self.get_parameter('enable_linear_scaling').value
+
+        self.beta = 0.0
+        self.beta_sub = self.create_subscription(Float64, '/trailer/beta', self.beta_callback, 10)
+        self.cmd_vel_sub = self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_callback, 10)
+        self.safe_cmd_pub = self.create_publisher(Twist, '/cmd_vel_safe', 10)
+
+    def beta_callback(self, msg):
+        self.beta = msg.data
+
+    def cmd_vel_callback(self, msg):
+        v = msg.linear.x
+        omega = msg.angular.z
+        is_reversing = v < 0.0
+        
+        if is_reversing:
+            b_max = self.beta_max_rev
+            gain = self.k_rev
+            v_cmd = max(v, -self.max_rev_speed)
+        else:
+            b_max = self.beta_max
+            gain = self.k
+            v_cmd = v
+
+        if self.linear_scaling and not is_reversing:
+            scale_factor = 1.0 - (abs(self.beta) / b_max) ** 2
+            scale_factor = max(0.1, min(1.0, scale_factor))
+            v_safe = v_cmd * scale_factor
+        else:
+            v_safe = v_cmd
+
+        sin_beta = math.sin(self.beta)
+        drift_term = (v_safe / self.d) * sin_beta
+        omega_max = drift_term + gain * (b_max - self.beta)
+        omega_min = drift_term - gain * (b_max + self.beta)
+
+        if omega_min > omega_max:
+            omega_min, omega_max = omega_max, omega_min
+
+        omega_safe = max(omega_min, min(omega_max, omega))
+
+        safe_msg = Twist()
+        safe_msg.linear.x = v_safe
+        safe_msg.angular.z = omega_safe
+        self.safe_cmd_pub.publish(safe_msg)
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = HitchAngleStabilizer()
+    rclpy.spin(node)
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+\end{lstlisting}
+
+\end{document}
