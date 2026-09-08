@@ -79,6 +79,17 @@ ros2 launch diff_robot person_detection_demo.launch.py
 - **Validation:** Qualitative validation has been achieved in Gazebo simulation. The perception node successfully identifies animated actors at 15+ FPS on CPU, while the navigation stack routes the robot safely through cluttered environments.
 - **Limitations:** The current implementation relies on Gazebo Classic. Future work includes migrating to Gazebo Ignition/Harmonic and deploying the stack onto physical hardware.
 
+## 📸 Screenshots
+
+### Simulation Overview
+![Simulation Overview](simulation_totale.png)
+
+### AI Perception
+![AI Detection](ai2.png)
+
+### Robot Model
+![Robot Model](ai_robot.png)
+
 
 ---
 **Author:** Rabeb Bouzaida — ENIM (Tunisia) — Electrical Engineering  
